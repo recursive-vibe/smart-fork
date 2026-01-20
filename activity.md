@@ -1,9 +1,9 @@
 # Project Build - Activity Log
 
 ## Current Status
-**Last Updated:** 2026-01-20 17:00
-**Tasks Completed:** 13/22
-**Current Task:** Build fork command generator (dual modes)
+**Last Updated:** 2026-01-20 17:15
+**Tasks Completed:** 14/22
+**Current Task:** Implement initial database setup flow
 
 ---
 
@@ -604,5 +604,45 @@ After completing each task, add an entry below in this format:
 
 **Verification:**
 - verification/task-13-create-interactive-selection-ui.txt
+
+---
+
+### 2026-01-20 17:15
+**Completed:**
+- Task 14: Build fork command generator (dual modes)
+
+**Changes Made:**
+- Created src/smart_fork/fork_generator.py with ForkGenerator class (253 lines)
+- Implemented ForkCommand dataclass for representing fork commands
+- Implemented find_session_path() method for locating session files
+- Implemented generate_terminal_command() for new terminal fork mode
+- Implemented generate_in_session_command() for in-session fork mode
+- Implemented format_metadata() for displaying session information
+- Implemented generate_fork_command() orchestrating command generation
+- Implemented format_fork_output() for user-friendly output display
+- Implemented generate_and_format() convenience method
+- Created tests/test_fork_generator.py with comprehensive test suite (27 test methods, 8 test classes)
+
+**Status:**
+- ✓ ForkGenerator class fully implemented
+- ✓ ForkCommand dataclass with session_id, terminal_command, in_session_command, session_path, metadata
+- ✓ Generates new terminal command: claude --resume [id] --fork-session
+- ✓ Generates in-session command: /fork [id] [path]
+- ✓ Session file path discovery with multiple search patterns
+- ✓ Project-aware path resolution
+- ✓ Session metadata display before forking
+- ✓ Copy-paste ready commands
+- ✓ Execution time tracking and display (with time formatting)
+- ✓ Comprehensive test suite with 27 unit tests across 8 test classes
+- ✓ All 27/27 tests passed (100% success rate)
+
+**Next:**
+- Task 15: Implement initial database setup flow
+
+**Blockers:**
+- None (implementation complete and all tests passing)
+
+**Verification:**
+- verification/task-14-build-fork-command-generator.txt
 
 ---

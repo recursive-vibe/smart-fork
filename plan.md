@@ -192,7 +192,7 @@ An MCP server for Claude Code that enables semantic search of past session trans
       "Show success confirmation with execution time",
       "Test both forking modes"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "feature",
