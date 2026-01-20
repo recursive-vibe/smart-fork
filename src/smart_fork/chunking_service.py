@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass
 from typing import List, Optional
 from smart_fork.session_parser import SessionMessage
+from smart_fork.memory_extractor import MemoryExtractor
 
 
 @dataclass
@@ -22,6 +23,7 @@ class Chunk:
     end_index: int    # Index of last message in chunk (inclusive)
     token_count: int
     overlap: bool = False  # True if this is overlap content from previous chunk
+    memory_types: Optional[List[str]] = None  # Memory markers: PATTERN, WORKING_SOLUTION, WAITING
 
 
 class ChunkingService:
@@ -31,7 +33,8 @@ class ChunkingService:
         self,
         target_tokens: int = 750,
         overlap_tokens: int = 150,
-        max_tokens: int = 1000
+        max_tokens: int = 1000,
+        extract_memory: bool = True
     ):
         """
         Initialize the chunking service.
@@ -40,10 +43,13 @@ class ChunkingService:
             target_tokens: Target token count per chunk (default: 750)
             overlap_tokens: Token overlap between chunks (default: 150)
             max_tokens: Maximum tokens per chunk before forced split (default: 1000)
+            extract_memory: Whether to extract memory markers from chunks (default: True)
         """
         self.target_tokens = target_tokens
         self.overlap_tokens = overlap_tokens
         self.max_tokens = max_tokens
+        self.extract_memory = extract_memory
+        self.memory_extractor = MemoryExtractor() if extract_memory else None
 
     def chunk_messages(self, messages: List[SessionMessage]) -> List[Chunk]:
         """
@@ -152,11 +158,19 @@ class ChunkingService:
         content = "\n\n".join(content_parts)
         token_count = self._count_tokens(content)
 
+        # Extract memory types if enabled
+        memory_types = None
+        if self.extract_memory and self.memory_extractor:
+            memory_types = self.memory_extractor.extract_memory_types(content)
+            if not memory_types:  # Empty list -> None for consistency
+                memory_types = None
+
         return Chunk(
             content=content,
             start_index=start_index,
             end_index=end_index,
-            token_count=token_count
+            token_count=token_count,
+            memory_types=memory_types
         )
 
     def _find_overlap_start(

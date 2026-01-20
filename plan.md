@@ -220,7 +220,7 @@ An MCP server for Claude Code that enables semantic search of past session trans
       "Apply memory-based score boosting",
       "Write unit tests for marker detection"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "feature",
