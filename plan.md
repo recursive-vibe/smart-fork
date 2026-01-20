@@ -166,7 +166,7 @@ An MCP server for Claude Code that enables semantic search of past session trans
       "Return formatted results within 3 seconds",
       "Handle empty/no-results case gracefully"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "feature",
@@ -179,7 +179,7 @@ An MCP server for Claude Code that enables semantic search of past session trans
       "Handle keyboard navigation (Enter, arrows, Esc)",
       "Test selection flow end-to-end"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "feature",

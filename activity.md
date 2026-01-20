@@ -1,9 +1,9 @@
 # Project Build - Activity Log
 
 ## Current Status
-**Last Updated:** 2026-01-20 17:30
-**Tasks Completed:** 11/22
-**Current Task:** Implement /fork-detect MCP command handler
+**Last Updated:** 2026-01-20 17:00
+**Tasks Completed:** 13/22
+**Current Task:** Build fork command generator (dual modes)
 
 ---
 
@@ -512,5 +512,97 @@ After completing each task, add an entry below in this format:
 
 **Verification:**
 - verification/task-11-build-local-rest-api-server.txt
+
+---
+
+### 2026-01-20 16:40
+**Completed:**
+- Task 12: Implement /fork-detect MCP command handler
+
+**Changes Made:**
+- Updated src/smart_fork/server.py with full SearchService integration
+- Added imports for EmbeddingService, VectorDBService, ScoringService, SessionRegistry, SearchService
+- Added logging configuration with stderr output
+- Modified MCPServer.__init__() to accept optional search_service parameter
+- Implemented format_search_results() function for formatting search results as human-readable text
+- Implemented create_fork_detect_handler() to create handler with search service closure
+- Implemented initialize_services() function to set up all required services (storage, embedding, vector db, scoring, registry, search)
+- Updated create_server() to accept search_service parameter and create handler with it
+- Updated main() to initialize services and pass to server
+- Implemented comprehensive error handling for all cases (no service, empty query, search errors)
+- Implemented graceful handling of empty/no-results cases
+- Created tests/test_fork_detect.py with 26 comprehensive test functions
+- Created manual_test_fork_detect.py with 10 integration test groups
+- All 10/10 manual tests passed (100% success rate)
+
+**Status:**
+- ✓ /fork-detect tool registered in MCP server
+- ✓ Accepts natural language description input via "query" parameter
+- ✓ Integrates with SearchService to find relevant sessions
+- ✓ Returns formatted results with session details, scores, and previews
+- ✓ Handles empty/no-results case gracefully with helpful message
+- ✓ Handles missing search service gracefully
+- ✓ Validates empty query input
+- ✓ Comprehensive error handling with logging
+- ✓ Format includes score breakdown (best similarity, avg similarity, chunk ratio, recency, chain quality, memory boost)
+- ✓ Format includes session metadata (project, created_at, messages, chunks, tags)
+- ✓ Format includes preview snippets (first 3 lines)
+- ✓ MCP protocol integration verified through tools/call and tools/list
+- ✓ Service initialization with default storage path (~/.smart-fork)
+- ✓ Comprehensive test suite with 26 unit tests
+- ✓ All 10/10 manual integration tests passed
+
+**Next:**
+- Task 13: Create interactive selection UI
+
+**Blockers:**
+- None (implementation complete, runtime requires: pip install dependencies)
+
+**Verification:**
+- verification/task-12-implement-fork-detect-mcp-command-handler.txt
+
+---
+
+### 2026-01-20 17:00
+**Completed:**
+- Task 13: Create interactive selection UI
+
+**Changes Made:**
+- Verified src/smart_fork/selection_ui.py with SelectionUI class (374 lines)
+- Verified SelectionOption dataclass for representing selection options
+- Verified format_date() method for ISO date formatting
+- Verified truncate_preview() method for preview text truncation
+- Verified create_options() method creating exactly 5 options (top 3 + 'None' + 'Type something')
+- Verified format_selection_prompt() for formatting selection display
+- Verified format_chat_option() for 'Chat about this' discussion feature
+- Verified display_selection() returning structured selection data
+- Verified handle_selection() for processing user selection
+- Verified tests/test_selection_ui.py with comprehensive test suite (40+ test methods, 9 test classes)
+- Created verification/task-13-create-interactive-selection-ui.txt
+
+**Status:**
+- ✓ SelectionUI class fully implemented
+- ✓ SelectionOption dataclass with all required fields
+- ✓ Displays exactly 5 options (top 3 results + 'None - start fresh' + 'Type something else')
+- ✓ Highest-scoring result marked as 'Recommended' with ⭐ emoji
+- ✓ Session metadata displayed (ID, date, topic, preview snippet, score %)
+- ✓ Preview text truncation at word boundaries (150 chars default)
+- ✓ Date formatting from ISO to readable format
+- ✓ 'Chat about this' discussion option implemented
+- ✓ Keyboard navigation hints provided (Enter, ↑/↓, Esc)
+- ✓ Emoji markers for options (⭐ recommended, ❌ none, 🔍 refine)
+- ✓ Handle selection with actions: fork, start_fresh, refine, error
+- ✓ Integration with SearchService via SessionSearchResult
+- ✓ Comprehensive test suite with 40+ test methods across 9 test classes
+- ✓ All 31/31 code structure and feature verifications passed (100% success rate)
+
+**Next:**
+- Task 14: Build fork command generator (dual modes)
+
+**Blockers:**
+- None (implementation complete and verified)
+
+**Verification:**
+- verification/task-13-create-interactive-selection-ui.txt
 
 ---

@@ -2,19 +2,38 @@
 
 import json
 import sys
+import os
+import logging
 from typing import Any, Dict, List, Optional
+from pathlib import Path
+
+from .embedding_service import EmbeddingService
+from .vector_db_service import VectorDBService
+from .scoring_service import ScoringService
+from .session_registry import SessionRegistry
+from .search_service import SearchService
+from .selection_ui import SelectionUI
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stderr)]
+)
+logger = logging.getLogger(__name__)
 
 
 class MCPServer:
     """Basic MCP server implementing JSON-RPC 2.0 over stdio."""
 
-    def __init__(self) -> None:
+    def __init__(self, search_service: Optional[SearchService] = None) -> None:
         """Initialize the MCP server."""
         self.tools: Dict[str, Dict[str, Any]] = {}
         self.server_info = {
             "name": "smart-fork",
             "version": "0.1.0"
         }
+        self.search_service = search_service
 
     def register_tool(
         self,
@@ -138,26 +157,144 @@ class MCPServer:
                 print(f"Error handling request: {e}", file=sys.stderr)
 
 
-def fork_detect_handler(arguments: Dict[str, Any]) -> str:
-    """Placeholder handler for /fork-detect tool."""
-    query = arguments.get("query", "")
+def format_search_results_with_selection(query: str, results: List[Any]) -> str:
+    """
+    Format search results with interactive selection UI.
 
-    return f"""Fork Detection (Placeholder)
+    Args:
+        query: Search query
+        results: List of search results
+
+    Returns:
+        Formatted selection prompt
+    """
+    selection_ui = SelectionUI()
+
+    if not results:
+        # Show no results message with options to refine or start fresh
+        return f"""Fork Detection - No Results Found
 
 Your query: {query}
 
-This is a placeholder response. The full implementation will:
-1. Search vector database for relevant sessions
-2. Calculate composite scores
-3. Return top 5 ranked sessions with metadata
+No relevant sessions were found in the database.
 
-Status: MCP server is running correctly, but search features are not yet implemented.
+This could mean:
+- The database is empty or not yet indexed
+- Your query doesn't match any existing sessions
+- Try rephrasing your query with different keywords
+
+Options:
+1. ❌ None of these - start fresh
+2. 🔍 Type something else
+
+Tip: The system searches through all your past Claude Code sessions to find relevant work.
 """
 
+    # Display selection UI
+    selection_data = selection_ui.display_selection(results, query)
+    return selection_data['prompt']
 
-def create_server() -> MCPServer:
+
+def create_fork_detect_handler(search_service: Optional[SearchService]):
+    """Create the fork-detect handler with access to search service."""
+    def fork_detect_handler(arguments: Dict[str, Any]) -> str:
+        """Handler for /fork-detect tool."""
+        query = arguments.get("query", "")
+
+        if not query:
+            return "Error: Please provide a query describing what you want to do."
+
+        if search_service is None:
+            return f"""Fork Detection (Service Not Initialized)
+
+Your query: {query}
+
+The search service is not yet initialized. This could mean:
+- The vector database is not set up
+- Dependencies are not installed
+- The server needs to be restarted
+
+Please ensure all dependencies are installed and the database is initialized.
+"""
+
+        try:
+            # Perform search with 3-second target
+            logger.info(f"Processing fork-detect query: {query}")
+            results = search_service.search(query, top_n=5)
+
+            # Format and return results with selection UI
+            formatted_output = format_search_results_with_selection(query, results)
+            logger.info(f"Returned {len(results)} results for query with selection UI")
+
+            return formatted_output
+
+        except Exception as e:
+            logger.error(f"Error in fork-detect handler: {e}", exc_info=True)
+            return f"""Fork Detection - Error
+
+Your query: {query}
+
+An error occurred while searching:
+{str(e)}
+
+Please check the logs for more details.
+"""
+
+    return fork_detect_handler
+
+
+def initialize_services(storage_dir: Optional[str] = None) -> Optional[SearchService]:
+    """
+    Initialize all required services for the MCP server.
+
+    Args:
+        storage_dir: Directory for storing database and registry (default: ~/.smart-fork)
+
+    Returns:
+        SearchService instance if initialization succeeds, None otherwise
+    """
+    try:
+        # Determine storage directory
+        if storage_dir is None:
+            home = Path.home()
+            storage_dir = str(home / ".smart-fork")
+
+        storage_path = Path(storage_dir)
+        storage_path.mkdir(parents=True, exist_ok=True)
+
+        vector_db_path = storage_path / "vector_db"
+        registry_path = storage_path / "session-registry.json"
+
+        logger.info(f"Initializing services with storage: {storage_dir}")
+
+        # Initialize services
+        embedding_service = EmbeddingService()
+        vector_db_service = VectorDBService(db_path=str(vector_db_path))
+        scoring_service = ScoringService()
+        session_registry = SessionRegistry(registry_path=str(registry_path))
+
+        # Create search service
+        search_service = SearchService(
+            embedding_service=embedding_service,
+            vector_db_service=vector_db_service,
+            scoring_service=scoring_service,
+            session_registry=session_registry,
+            k_chunks=200,
+            top_n_sessions=5,
+            preview_length=200
+        )
+
+        logger.info("Services initialized successfully")
+        return search_service
+
+    except Exception as e:
+        logger.error(f"Failed to initialize services: {e}", exc_info=True)
+        return None
+
+
+def create_server(search_service: Optional[SearchService] = None) -> MCPServer:
     """Create and configure the MCP server."""
-    server = MCPServer()
+    server = MCPServer(search_service=search_service)
 
     # Register /fork-detect tool
     server.register_tool(
@@ -173,7 +310,7 @@ def create_server() -> MCPServer:
             },
             "required": ["query"]
         },
-        handler=fork_detect_handler
+        handler=create_fork_detect_handler(search_service)
     )
 
     return server
@@ -181,7 +318,14 @@ def create_server() -> MCPServer:
 
 def main() -> None:
     """Main entry point for the Smart Fork MCP server."""
-    server = create_server()
+    # Initialize services (may be None if initialization fails)
+    search_service = initialize_services()
+
+    if search_service is None:
+        logger.warning("Services not initialized - server will run with limited functionality")
+
+    # Create and run server
+    server = create_server(search_service=search_service)
     server.run()
 
 
