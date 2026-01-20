@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "smart-fork": {
+      "command": "python",
+      "args": ["-m", "smart_fork.server"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
+  }
+}
