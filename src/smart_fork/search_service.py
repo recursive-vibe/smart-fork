@@ -6,7 +6,7 @@ to rank and return the most relevant sessions for a given query.
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from collections import defaultdict
@@ -17,6 +17,7 @@ from .scoring_service import ScoringService, SessionScore
 from .session_registry import SessionRegistry, SessionMetadata
 from .cache_service import CacheService
 from .preference_service import PreferenceService
+from .temporal_filter import TemporalFilter
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,11 @@ class SearchService:
         self,
         query: str,
         top_n: Optional[int] = None,
-        filter_metadata: Optional[Dict[str, Any]] = None
+        filter_metadata: Optional[Dict[str, Any]] = None,
+        time_range: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        apply_recency_boost: bool = True
     ) -> List[SessionSearchResult]:
         """
         Search for relevant sessions using semantic search and ranking.
@@ -132,6 +137,11 @@ class SearchService:
             query: Natural language search query
             top_n: Number of top sessions to return (overrides default)
             filter_metadata: Optional metadata filters for search
+            time_range: Predefined time range (today, this_week, last_month, etc.)
+                       or natural language ("last Tuesday", "2 weeks ago")
+            start_date: Custom start date (ISO format or natural language)
+            end_date: Custom end date (ISO format or natural language)
+            apply_recency_boost: Whether to boost recent sessions in temporal queries (default True)
 
         Returns:
             List of SessionSearchResult objects, ranked by relevance score
@@ -139,11 +149,32 @@ class SearchService:
         if top_n is None:
             top_n = self.top_n_sessions
 
+        # Parse temporal filter if provided
+        temporal_range = None
+        if time_range or start_date or end_date:
+            temporal_range = TemporalFilter.parse_time_range(time_range, start_date, end_date)
+            if temporal_range:
+                logger.info(
+                    f"Applying temporal filter: {temporal_range[0].isoformat()} "
+                    f"to {temporal_range[1].isoformat()}"
+                )
+            else:
+                logger.warning(f"Failed to parse temporal filter: {time_range or (start_date, end_date)}")
+
         logger.info(f"Searching for query: '{query[:50]}...' (top_n={top_n})")
+
+        # Create cache key that includes temporal parameters
+        cache_key_metadata = filter_metadata or {}
+        if temporal_range:
+            cache_key_metadata = {
+                **cache_key_metadata,
+                '_temporal_start': temporal_range[0].isoformat(),
+                '_temporal_end': temporal_range[1].isoformat(),
+            }
 
         # Try to get cached results first
         if self.enable_cache and self.cache_service:
-            cached_results = self.cache_service.get_search_results(query, filter_metadata)
+            cached_results = self.cache_service.get_search_results(query, cache_key_metadata)
             if cached_results is not None:
                 logger.info(f"Returning {len(cached_results)} cached search results")
                 return cached_results[:top_n]  # Respect top_n parameter
@@ -190,9 +221,22 @@ class SearchService:
 
         logger.info(f"Grouped into {len(session_chunks)} sessions")
 
+        # Step 3.5: Apply temporal filtering if specified
+        if temporal_range:
+            session_chunks = self._filter_sessions_by_time(
+                session_chunks,
+                temporal_range[0],
+                temporal_range[1]
+            )
+            logger.info(f"After temporal filtering: {len(session_chunks)} sessions remain")
+
         # Step 4: Calculate composite scores for each session (with preference learning)
         logger.debug("Calculating composite scores...")
-        session_scores = self._calculate_session_scores(session_chunks, query=query)
+        session_scores = self._calculate_session_scores(
+            session_chunks,
+            query=query,
+            temporal_range=temporal_range if apply_recency_boost else None
+        )
 
         # Step 5: Rank sessions and return top N
         logger.debug(f"Ranking sessions and selecting top {top_n}...")
@@ -221,7 +265,7 @@ class SearchService:
 
         # Cache the results
         if self.enable_cache and self.cache_service:
-            self.cache_service.put_search_results(query, results, filter_metadata)
+            self.cache_service.put_search_results(query, results, cache_key_metadata)
             logger.debug("Search results cached")
 
         return results
@@ -250,10 +294,44 @@ class SearchService:
 
         return dict(grouped)
 
+    def _filter_sessions_by_time(
+        self,
+        session_chunks: Dict[str, List[ChunkSearchResult]],
+        start: datetime,
+        end: datetime
+    ) -> Dict[str, List[ChunkSearchResult]]:
+        """
+        Filter sessions by timestamp range.
+
+        Args:
+            session_chunks: Dictionary mapping session_id to chunks
+            start: Start of time range
+            end: End of time range
+
+        Returns:
+            Filtered dictionary of sessions that fall within the time range
+        """
+        filtered = {}
+
+        for session_id, chunks in session_chunks.items():
+            # Get session metadata to check timestamps
+            metadata = self.session_registry.get_session(session_id)
+            if not metadata:
+                continue
+
+            # Check if session falls within time range
+            # Use last_modified as primary timestamp, fall back to created_at
+            timestamp = metadata.last_modified or metadata.created_at
+            if timestamp and TemporalFilter.filter_by_timestamp(timestamp, start, end):
+                filtered[session_id] = chunks
+
+        return filtered
+
     def _calculate_session_scores(
         self,
         session_chunks: Dict[str, List[ChunkSearchResult]],
-        query: Optional[str] = None
+        query: Optional[str] = None,
+        temporal_range: Optional[Tuple[datetime, datetime]] = None
     ) -> List[SessionScore]:
         """
         Calculate composite scores for each session.
@@ -261,6 +339,7 @@ class SearchService:
         Args:
             session_chunks: Dictionary mapping session_id to chunks
             query: Optional query context for preference calculation
+            temporal_range: Optional time range for recency boost calculation
 
         Returns:
             List of SessionScore objects
@@ -300,6 +379,20 @@ class SearchService:
             # Get preference boost for this session
             preference_boost = preference_boosts.get(session_id, 0.0)
 
+            # Calculate temporal recency boost if temporal filtering is active
+            recency_boost = 0.0
+            if temporal_range and session_metadata:
+                timestamp = session_metadata.last_modified or session_metadata.created_at
+                if timestamp:
+                    recency_boost = TemporalFilter.calculate_recency_boost(
+                        timestamp,
+                        max_boost=0.2,
+                        decay_days=30
+                    )
+
+            # Combine preference and recency boosts
+            combined_boost = preference_boost + recency_boost
+
             # Calculate composite score
             score = self.scoring_service.calculate_session_score(
                 session_id=session_id,
@@ -307,7 +400,7 @@ class SearchService:
                 total_chunks_in_session=total_chunks,
                 session_last_modified=last_modified,
                 memory_types=memory_types if memory_types else None,
-                preference_boost=preference_boost
+                preference_boost=combined_boost
             )
 
             scores.append(score)

@@ -603,7 +603,8 @@ class TestSessionSearchResult(unittest.TestCase):
             recency_score=0.9,
             chain_quality=0.5,
             memory_boost=0.05,
-            num_chunks_matched=5
+            num_chunks_matched=5,
+            preference_boost=0.0
         )
 
         metadata = SessionMetadata(

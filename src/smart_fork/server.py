@@ -305,6 +305,9 @@ def create_fork_detect_handler(
         query = arguments.get("query", "")
         project_param = arguments.get("project")
         scope = arguments.get("scope", "all")
+        time_range = arguments.get("time_range")
+        start_date = arguments.get("start_date")
+        end_date = arguments.get("end_date")
 
         if not query:
             return "Error: Please provide a query describing what you want to do."
@@ -363,9 +366,22 @@ Need help? See: README.md > Troubleshooting
             else:
                 project_display = "All Projects"
 
-            # Perform search with 3-second target
-            logger.info(f"Processing fork-detect query: {query} (scope: {project_display})")
-            results = search_service.search(query, top_n=5, filter_metadata=filter_metadata)
+            # Perform search with temporal parameters
+            temporal_desc = ""
+            if time_range:
+                temporal_desc = f", time: {time_range}"
+            elif start_date or end_date:
+                temporal_desc = f", time: {start_date or ''} to {end_date or ''}"
+
+            logger.info(f"Processing fork-detect query: {query} (scope: {project_display}{temporal_desc})")
+            results = search_service.search(
+                query,
+                top_n=5,
+                filter_metadata=filter_metadata,
+                time_range=time_range,
+                start_date=start_date,
+                end_date=end_date
+            )
 
             # Format and return results with selection UI (including fork commands)
             formatted_output = format_search_results_with_selection(
@@ -742,6 +758,18 @@ def create_server(
                     "type": "string",
                     "enum": ["all", "project"],
                     "description": "Search scope: 'all' searches all sessions (default), 'project' searches only current project"
+                },
+                "time_range": {
+                    "type": "string",
+                    "description": "Predefined time range (today, yesterday, this_week, last_week, this_month, last_month, this_year) or natural language ('last Tuesday', '2 weeks ago', '3d')"
+                },
+                "start_date": {
+                    "type": "string",
+                    "description": "Custom start date for filtering (ISO format: 2026-01-01 or natural language)"
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "Custom end date for filtering (ISO format: 2026-01-21 or natural language)"
                 }
             },
             "required": ["query"]

@@ -136,7 +136,7 @@ These features add meaningful capabilities with moderate implementation complexi
       "Show relative time in search results",
       "Add recency boost for temporal queries"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "organization",

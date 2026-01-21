@@ -90,10 +90,12 @@ class TestMCPClientIntegration:
         assert response is not None
         assert "result" in response
         assert "tools" in response["result"]
-        assert len(response["result"]["tools"]) == 2
+        assert len(response["result"]["tools"]) == 4
         tool_names = [t["name"] for t in response["result"]["tools"]]
         assert "fork-detect" in tool_names
         assert "get-session-preview" in tool_names
+        assert "record-fork" in tool_names
+        assert "get-fork-history" in tool_names
 
     def test_fork_detect_tool_invocation(self):
         """Test invoking fork-detect tool via MCP protocol."""
@@ -227,7 +229,8 @@ class TestSearchSelectForkWorkflow:
                     recency_score=0.85,
                     chain_quality=0.75,
                     memory_boost=0.0,
-                    num_chunks_matched=5
+                    num_chunks_matched=5,
+                    preference_boost=0.0
                 ),
                 metadata=SessionMetadata(
                     session_id='session1',
@@ -249,7 +252,8 @@ class TestSearchSelectForkWorkflow:
                     recency_score=0.75,
                     chain_quality=0.65,
                     memory_boost=0.0,
-                    num_chunks_matched=4
+                    num_chunks_matched=4,
+                    preference_boost=0.0
                 ),
                 metadata=SessionMetadata(
                     session_id='session2',
@@ -271,7 +275,8 @@ class TestSearchSelectForkWorkflow:
                     recency_score=0.70,
                     chain_quality=0.55,
                     memory_boost=0.0,
-                    num_chunks_matched=6
+                    num_chunks_matched=6,
+                    preference_boost=0.0
                 ),
                 metadata=SessionMetadata(
                     session_id='session3',
@@ -360,7 +365,8 @@ class TestSearchSelectForkWorkflow:
                     recency_score=0.85,
                     chain_quality=0.75,
                     memory_boost=0.0,
-                    num_chunks_matched=5
+                    num_chunks_matched=5,
+                    preference_boost=0.0
                 ),
                 metadata=SessionMetadata(
                     session_id='session1',

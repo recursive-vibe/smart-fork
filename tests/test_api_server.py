@@ -139,7 +139,8 @@ def test_search_chunks_success(client, mock_search_service):
         recency_score=0.7,
         chain_quality=0.5,
         memory_boost=0.0,
-        num_chunks_matched=5
+        num_chunks_matched=5,
+        preference_boost=0.0
     )
     mock_metadata = SessionMetadata(
         session_id="test-session",
