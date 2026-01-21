@@ -1,0 +1,216 @@
+Phase 3 - Task 3: Project-Scoped Search Filter
+================================================
+
+Date: 2026-01-21
+Task: Add project-scoped search filter (P1)
+Status: ✅ COMPLETE
+
+OVERVIEW
+--------
+Successfully implemented project-scoped search filtering that allows users to search within
+a specific project or auto-detect the project from their current working directory.
+
+IMPLEMENTATION DETAILS
+----------------------
+
+1. MCP Tool Schema Enhancement (server.py:624-647)
+   - Added 'project' parameter: Optional project name, use 'current' for auto-detection
+   - Added 'scope' parameter: Enum ['all', 'project'] for search scope
+   - Both parameters are optional, maintaining backwards compatibility
+
+2. Project Auto-Detection (server.py:242-280)
+   - New function: detect_project_from_cwd()
+   - Converts file path to Claude's project naming scheme
+   - Example: /Users/foo/Documents/Project -> -Users-foo-Documents-Project
+   - Handles Unix and Windows paths
+   - Graceful fallback if detection fails
+
+3. Fork Detect Handler Enhancement (server.py:295-370)
+   - Processes 'project' and 'scope' parameters
+   - Three detection modes:
+     a. Explicit project: Use provided project name
+     b. project='current': Auto-detect from CWD
+     c. scope='project': Auto-detect from CWD
+   - Falls back to all-projects search if detection fails
+   - Passes filter_metadata to search service
+
+4. Project Scope Display (server.py:174-240, selection_ui.py:222-276)
+   - Added project_scope parameter to format_search_results_with_selection()
+   - Updated SelectionUI.display_selection() to accept project_scope
+   - Updated SelectionUI.format_selection_prompt() to display scope
+   - Shows "Scope: {project_name}" in search results header
+
+5. Search Service Integration
+   - Existing filter_metadata parameter already supported
+   - Project filter passed through: search(query, filter_metadata={"project": "..."})
+   - VectorDBService applies filter at ChromaDB level
+   - Cache keys include filter_metadata to prevent incorrect cache hits
+
+TESTING
+-------
+
+Created comprehensive test suite: tests/test_project_scoped_search.py (15 tests)
+
+Test Coverage:
+  ✅ Project detection from Unix paths
+  ✅ Project detection from Windows paths
+  ✅ Project detection from nested paths
+  ✅ Project detection with spaces in path
+  ✅ Project detection from current directory
+  ✅ Project detection with invalid paths (graceful handling)
+  ✅ Fork-detect without project parameter (searches all)
+  ✅ Fork-detect with explicit project name
+  ✅ Fork-detect with project='current' (auto-detect)
+  ✅ Fork-detect with scope='project' (auto-detect)
+  ✅ Fork-detect when auto-detection fails (fallback to all)
+  ✅ Fork-detect with scope='all' (explicit all-projects search)
+  ✅ Fork-detect displays project scope in results
+  ✅ Fork-detect validates query even with project parameter
+  ✅ Project filter is passed to vector database
+
+Updated Existing Tests:
+  ✅ test_mcp_server.py: Updated tool count assertion (now 4 tools)
+
+Test Results:
+  - tests/test_project_scoped_search.py: 15/15 passing ✅
+  - tests/test_mcp_server.py: 19/19 passing ✅
+  - tests/test_selection_ui.py: 26/26 passing ✅
+  - Total: 60/60 tests passing ✅
+
+USAGE EXAMPLES
+--------------
+
+1. Search all projects (default behavior):
+   {
+     "query": "authentication flow"
+   }
+
+2. Search specific project:
+   {
+     "query": "authentication flow",
+     "project": "-Users-john-Documents-AuthService"
+   }
+
+3. Auto-detect project from CWD:
+   {
+     "query": "authentication flow",
+     "project": "current"
+   }
+
+4. Alternative auto-detect syntax:
+   {
+     "query": "authentication flow",
+     "scope": "project"
+   }
+
+5. Explicit all-projects search:
+   {
+     "query": "authentication flow",
+     "scope": "all"
+   }
+
+FILE CHANGES
+------------
+
+Modified Files:
+  - src/smart_fork/server.py
+    * Added detect_project_from_cwd() helper function (lines 242-280)
+    * Updated fork-detect tool schema with project/scope parameters (lines 624-647)
+    * Updated create_fork_detect_handler() to process project filtering (lines 295-370)
+    * Updated format_search_results_with_selection() to display project scope (lines 174-240)
+
+  - src/smart_fork/selection_ui.py
+    * Updated display_selection() to accept project_scope parameter (line 325-344)
+    * Updated format_selection_prompt() to display scope (lines 222-245)
+
+New Files:
+  - tests/test_project_scoped_search.py (15 comprehensive tests)
+
+Updated Files:
+  - tests/test_mcp_server.py (updated tool count assertion)
+
+ARCHITECTURE
+------------
+
+Filter Flow:
+  MCP Request (project param)
+    ↓
+  detect_project_from_cwd() [if project='current' or scope='project']
+    ↓
+  filter_metadata = {"project": "..."}
+    ↓
+  SearchService.search(query, filter_metadata)
+    ↓
+  VectorDBService.search_chunks(query_embedding, k, filter_metadata)
+    ↓
+  ChromaDB query with where clause
+    ↓
+  Filtered results by project
+
+Project Naming Convention:
+  - Claude stores sessions in: ~/.claude/projects/{project_name}/sessions/
+  - Project name format: Path with separators replaced by hyphens
+  - Leading hyphen ensures file-system safety
+  - Examples:
+    * /Users/john/Documents/MyProject -> -Users-john-Documents-MyProject
+    * C:\Users\john\Documents\MyProject -> -C-Users-john-Documents-MyProject
+
+BACKWARDS COMPATIBILITY
+------------------------
+
+✅ Fully backwards compatible:
+  - 'project' and 'scope' parameters are optional
+  - Default behavior (no parameters) searches all projects
+  - Existing MCP clients continue to work unchanged
+  - Cache service handles filter_metadata correctly
+
+PERFORMANCE CONSIDERATIONS
+---------------------------
+
+✅ Efficient filtering:
+  - Filtering happens at ChromaDB level (native vector DB filtering)
+  - Cache keys include filter_metadata (prevents incorrect cache hits)
+  - No performance degradation for all-projects searches
+  - Project-scoped searches may be faster (smaller result set)
+
+SUCCESS METRICS
+---------------
+
+Target: 30%+ of searches use project scope
+Current Status: Feature implemented and tested
+
+Implementation Quality:
+  ✅ All 60 tests passing
+  ✅ Comprehensive test coverage (15 new tests)
+  ✅ Graceful error handling (auto-detection failures)
+  ✅ Clear user feedback (scope displayed in results)
+  ✅ Backwards compatible
+  ✅ Well-documented code
+  ✅ Follows existing patterns and conventions
+
+VERIFICATION COMMANDS
+---------------------
+
+Run all tests:
+  source venv/bin/activate && python -m pytest tests/test_project_scoped_search.py -v
+
+Run related tests:
+  source venv/bin/activate && python -m pytest tests/test_mcp_server.py tests/test_selection_ui.py -v
+
+Test project detection:
+  python3 -c "from smart_fork.server import detect_project_from_cwd; print(detect_project_from_cwd())"
+
+NEXT STEPS
+----------
+
+This completes Task 3 (P1) from plan3.md.
+
+Recommended next task: Task 4 (P1) - Add embedding cache for indexed sessions
+  - Store chunk hashes with embeddings
+  - Skip embedding computation for unchanged chunks
+  - Content-addressable embedding storage
+  - Cache statistics in initial setup output
+
+---
+
+End of Verification Document

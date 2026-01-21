@@ -95,3 +95,133 @@ This file tracks progress on Phase 3 feature development tasks.
 - Most-recent-first ordering
 - Statistics for monitoring and debugging
 - Graceful degradation if service unavailable
+
+---
+
+### 2026-01-21: Project-Scoped Search Filter (P1)
+
+**Task:** Add project-scoped search filter to enable users to search within a specific project or auto-detect from current working directory.
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Added 'project' and 'scope' parameters to fork-detect MCP tool schema
+- Implemented detect_project_from_cwd() function for auto-detection
+- Updated fork_detect_handler to process project filtering
+- Enhanced SelectionUI to display project scope in results
+- Created comprehensive test suite (15 new tests)
+
+**Implementation Details:**
+
+1. **MCP Tool Schema Enhancement** (server.py:624-647)
+   - Added optional 'project' parameter (use 'current' for auto-detection)
+   - Added optional 'scope' parameter (enum: 'all', 'project')
+   - Maintains backwards compatibility (both parameters optional)
+
+2. **Project Auto-Detection** (server.py:242-280)
+   - New function: detect_project_from_cwd()
+   - Converts file path to Claude's project naming scheme
+   - Example: /Users/foo/Documents/Project → -Users-foo-Documents-Project
+   - Handles Unix and Windows paths
+   - Graceful fallback if detection fails
+
+3. **Fork Detect Handler Enhancement** (server.py:295-370)
+   - Three detection modes:
+     a. Explicit project: Use provided project name
+     b. project='current': Auto-detect from CWD
+     c. scope='project': Auto-detect from CWD
+   - Falls back to all-projects search if detection fails
+   - Passes filter_metadata={"project": "..."} to search service
+
+4. **Project Scope Display**
+   - Updated format_search_results_with_selection() to accept project_scope
+   - Updated SelectionUI.display_selection() and format_selection_prompt()
+   - Shows "Scope: {project_name}" in search results header
+
+5. **Search Service Integration**
+   - Leverages existing filter_metadata parameter
+   - Project filter passed through to VectorDBService
+   - ChromaDB applies filter at database level
+   - Cache keys include filter_metadata to prevent incorrect cache hits
+
+**Test Coverage:**
+- tests/test_project_scoped_search.py: 15/15 tests passing ✅
+  - Project detection from various path formats
+  - Fork-detect with different parameter combinations
+  - Auto-detection fallback behavior
+  - Project scope display verification
+  - Filter propagation to vector database
+
+- Updated tests/test_mcp_server.py: 19/19 passing ✅
+  - Updated tool count assertion (now 4 tools)
+
+- tests/test_selection_ui.py: 26/26 passing ✅
+  - All existing tests still pass
+
+**Total:** 60/60 tests passing ✅
+
+**Usage Examples:**
+
+1. Search all projects (default):
+   ```json
+   {"query": "authentication flow"}
+   ```
+
+2. Search specific project:
+   ```json
+   {
+     "query": "authentication flow",
+     "project": "-Users-john-Documents-AuthService"
+   }
+   ```
+
+3. Auto-detect project from CWD:
+   ```json
+   {
+     "query": "authentication flow",
+     "project": "current"
+   }
+   ```
+
+4. Alternative auto-detect syntax:
+   ```json
+   {
+     "query": "authentication flow",
+     "scope": "project"
+   }
+   ```
+
+**Architecture:**
+```
+MCP Request (project param)
+  ↓
+detect_project_from_cwd() [if needed]
+  ↓
+filter_metadata = {"project": "..."}
+  ↓
+SearchService.search(query, filter_metadata)
+  ↓
+VectorDBService.search_chunks(query_embedding, k, filter_metadata)
+  ↓
+ChromaDB query with where clause
+  ↓
+Filtered results by project
+```
+
+**Verification:**
+- Created verification/phase3-project-scoped-search.txt documenting all components
+- All 5 steps from plan3.md completed:
+  ✅ Add optional 'project' parameter to fork-detect tool
+  ✅ Auto-detect project from current working directory
+  ✅ Filter search results by project metadata
+  ✅ Show project scope in results display
+  ✅ Allow toggling between all/project scope
+
+**Performance:**
+- Filtering happens at ChromaDB level (efficient)
+- No performance degradation for all-projects searches
+- Project-scoped searches may be faster (smaller result set)
+- Cache correctly handles filter_metadata in cache keys
+
+**Backwards Compatibility:**
+✅ Fully backwards compatible - all parameters optional, default behavior unchanged

@@ -62,11 +62,13 @@ class TestMCPServer:
         result = server.handle_tools_list({})
 
         assert "tools" in result
-        assert len(result["tools"]) == 2
+        assert len(result["tools"]) == 4  # fork-detect, get-session-preview, record-fork, get-fork-history
         tool_names = [t["name"] for t in result["tools"]]
         assert "fork-detect" in tool_names
         assert "get-session-preview" in tool_names
-        # Verify both tools have required properties
+        assert "record-fork" in tool_names
+        assert "get-fork-history" in tool_names
+        # Verify all tools have required properties
         for tool in result["tools"]:
             assert "description" in tool
             assert "inputSchema" in tool

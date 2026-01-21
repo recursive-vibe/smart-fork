@@ -21,6 +21,7 @@ from .chunking_service import ChunkingService
 from .fork_generator import ForkGenerator
 from .cache_service import CacheService
 from .config_manager import ConfigManager
+from .fork_history_service import ForkHistoryService
 
 # Configure logging
 logging.basicConfig(
@@ -174,7 +175,8 @@ def format_search_results_with_selection(
     query: str,
     results: List[Any],
     claude_dir: Optional[str] = None,
-    session_registry: Optional[Any] = None
+    session_registry: Optional[Any] = None,
+    project_scope: Optional[str] = None
 ) -> str:
     """
     Format search results with interactive selection UI.
@@ -184,6 +186,7 @@ def format_search_results_with_selection(
         results: List of search results
         claude_dir: Optional path to Claude directory (for ForkGenerator)
         session_registry: Optional SessionRegistry for database stats
+        project_scope: Optional project scope description to display
 
     Returns:
         Formatted selection prompt
@@ -209,9 +212,10 @@ def format_search_results_with_selection(
                 pass
 
         # Show no results message with options to refine or start fresh
+        scope_info = f"\nScope: {project_scope}\n" if project_scope else ""
         return f"""Fork Detection - No Results Found
 
-Your query: {query}
+Your query: {query}{scope_info}
 {stats_info}
 No relevant sessions were found in the database.
 
@@ -234,8 +238,52 @@ Tip: The system searches through all your past Claude Code sessions to find rele
 """
 
     # Display selection UI
-    selection_data = selection_ui.display_selection(results, query)
+    selection_data = selection_ui.display_selection(
+        results,
+        query,
+        project_scope=project_scope
+    )
     return selection_data['prompt']
+
+
+def detect_project_from_cwd(cwd: Optional[str] = None) -> Optional[str]:
+    """
+    Detect project name from current working directory.
+
+    Converts a file path to Claude's project naming scheme.
+    Example: /Users/foo/Documents/MyProject -> -Users-foo-Documents-MyProject
+
+    Args:
+        cwd: Current working directory (defaults to os.getcwd())
+
+    Returns:
+        Project name in Claude's format, or None if detection fails
+    """
+    if cwd is None:
+        cwd = os.getcwd()
+
+    try:
+        # Convert path to absolute and resolve symlinks
+        abs_path = Path(cwd).resolve()
+
+        # Convert path to Claude's project naming format
+        # Replace path separators with hyphens, remove leading slash
+        path_str = str(abs_path)
+
+        # For macOS/Linux: /Users/foo/Documents/Project -> -Users-foo-Documents-Project
+        # For Windows: C:\Users\foo\Documents\Project -> -C-Users-foo-Documents-Project
+        project_name = path_str.replace(os.sep, '-')
+
+        # Ensure it starts with a hyphen
+        if not project_name.startswith('-'):
+            project_name = '-' + project_name
+
+        logger.debug(f"Detected project from CWD: {cwd} -> {project_name}")
+        return project_name
+
+    except Exception as e:
+        logger.warning(f"Failed to detect project from CWD '{cwd}': {e}")
+        return None
 
 
 def create_fork_detect_handler(
@@ -254,6 +302,8 @@ def create_fork_detect_handler(
     def fork_detect_handler(arguments: Dict[str, Any]) -> str:
         """Handler for /fork-detect tool."""
         query = arguments.get("query", "")
+        project_param = arguments.get("project")
+        scope = arguments.get("scope", "all")
 
         if not query:
             return "Error: Please provide a query describing what you want to do."
@@ -281,16 +331,48 @@ Need help? See: README.md > Troubleshooting
 """
 
         try:
+            # Determine project filter based on parameters
+            filter_metadata = None
+            project_display = None
+
+            # Handle project parameter
+            if project_param:
+                if project_param.lower() == "current":
+                    # Auto-detect from CWD
+                    detected_project = detect_project_from_cwd()
+                    if detected_project:
+                        filter_metadata = {"project": detected_project}
+                        project_display = f"Current Project ({detected_project})"
+                    else:
+                        logger.warning("Failed to auto-detect project from CWD")
+                        project_display = "All Projects (auto-detection failed)"
+                else:
+                    # Use explicit project name
+                    filter_metadata = {"project": project_param}
+                    project_display = f"Project: {project_param}"
+            elif scope == "project":
+                # scope=project means auto-detect current project
+                detected_project = detect_project_from_cwd()
+                if detected_project:
+                    filter_metadata = {"project": detected_project}
+                    project_display = f"Current Project ({detected_project})"
+                else:
+                    logger.warning("Failed to auto-detect project from CWD for scope=project")
+                    project_display = "All Projects (auto-detection failed)"
+            else:
+                project_display = "All Projects"
+
             # Perform search with 3-second target
-            logger.info(f"Processing fork-detect query: {query}")
-            results = search_service.search(query, top_n=5)
+            logger.info(f"Processing fork-detect query: {query} (scope: {project_display})")
+            results = search_service.search(query, top_n=5, filter_metadata=filter_metadata)
 
             # Format and return results with selection UI (including fork commands)
             formatted_output = format_search_results_with_selection(
                 query,
                 results,
                 claude_dir=claude_dir,
-                session_registry=session_registry
+                session_registry=session_registry,
+                project_scope=project_display
             )
             logger.info(f"Returned {len(results)} results for query with selection UI")
 
@@ -484,11 +566,126 @@ Use this information to decide if you want to fork from this session.
     return session_preview_handler
 
 
+def create_record_fork_handler(fork_history_service: Optional[ForkHistoryService]):
+    """
+    Create the record-fork handler for tracking fork history.
+
+    Args:
+        fork_history_service: ForkHistoryService instance for tracking forks
+    """
+    def record_fork_handler(arguments: Dict[str, Any]) -> str:
+        """Handler for record-fork tool."""
+        session_id = arguments.get("session_id", "")
+        query = arguments.get("query", "")
+        position = arguments.get("position", -1)
+
+        if not session_id:
+            return "Error: Please provide a session_id."
+
+        if fork_history_service is None:
+            return "Error: Fork history service is not initialized."
+
+        try:
+            fork_history_service.record_fork(
+                session_id=session_id,
+                query=query,
+                position=position
+            )
+            return f"Fork recorded successfully for session {session_id}"
+
+        except Exception as e:
+            logger.error(f"Error recording fork: {e}", exc_info=True)
+            return f"Error: Failed to record fork: {str(e)}"
+
+    return record_fork_handler
+
+
+def create_fork_history_handler(fork_history_service: Optional[ForkHistoryService]):
+    """
+    Create the get-fork-history handler for retrieving fork history.
+
+    Args:
+        fork_history_service: ForkHistoryService instance for accessing history
+    """
+    def fork_history_handler(arguments: Dict[str, Any]) -> str:
+        """Handler for get-fork-history tool."""
+        limit = arguments.get("limit", 10)
+
+        if fork_history_service is None:
+            return "Error: Fork history service is not initialized."
+
+        try:
+            recent_forks = fork_history_service.get_recent_forks(limit=limit)
+            stats = fork_history_service.get_stats()
+
+            if not recent_forks:
+                return """Fork History - No History Yet
+
+You haven't forked any sessions yet.
+
+When you fork from a session, it will be recorded here for easy reference.
+This helps you:
+- Quickly return to recently used sessions
+- See what queries led to successful forks
+- Track your most useful sessions over time
+"""
+
+            # Format the history output
+            output = f"""Fork History - Last {len(recent_forks)} Forks
+
+Total forks recorded: {stats['total_forks']}
+Unique sessions forked: {stats['unique_sessions']}
+
+Recent Forks:
+"""
+            for i, entry in enumerate(recent_forks, 1):
+                # Parse and format timestamp
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00'))
+                    time_str = dt.strftime("%Y-%m-%d %H:%M")
+                except:
+                    time_str = entry.timestamp
+
+                # Format position
+                if entry.position == -1:
+                    position_str = "custom"
+                elif entry.position >= 1:
+                    position_str = f"#{entry.position}"
+                else:
+                    position_str = "unknown"
+
+                # Truncate query if too long
+                query_display = entry.query[:60] + "..." if len(entry.query) > 60 else entry.query
+
+                output += f"""
+{i}. {entry.session_id}
+   Time: {time_str}
+   Query: {query_display}
+   Position: {position_str}
+"""
+
+            output += """
+---
+Use these session IDs with get-session-preview to see their content,
+or fork from them again using the generated fork commands.
+"""
+
+            return output
+
+        except Exception as e:
+            logger.error(f"Error getting fork history: {e}", exc_info=True)
+            return f"Error: Failed to get fork history: {str(e)}"
+
+    return fork_history_handler
+
+
 def create_server(
     search_service: Optional[SearchService] = None,
     background_indexer: Optional[BackgroundIndexer] = None,
     claude_dir: Optional[str] = None,
-    session_registry: Optional[Any] = None
+    session_registry: Optional[Any] = None,
+    fork_history_service: Optional[ForkHistoryService] = None
 ) -> MCPServer:
     """
     Create and configure the MCP server.
@@ -498,6 +695,7 @@ def create_server(
         background_indexer: Optional BackgroundIndexer instance
         claude_dir: Optional path to Claude directory (for ForkGenerator)
         session_registry: Optional SessionRegistry for database stats
+        fork_history_service: Optional ForkHistoryService for tracking fork history
     """
     server = MCPServer(
         search_service=search_service,
@@ -514,6 +712,15 @@ def create_server(
                 "query": {
                     "type": "string",
                     "description": "Natural language description of what you want to do"
+                },
+                "project": {
+                    "type": "string",
+                    "description": "Optional project name to filter results. Use 'current' to auto-detect from working directory, or specify a project name explicitly."
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": ["all", "project"],
+                    "description": "Search scope: 'all' searches all sessions (default), 'project' searches only current project"
                 }
             },
             "required": ["query"]
@@ -547,6 +754,49 @@ def create_server(
         handler=create_session_preview_handler(search_service, claude_dir=claude_dir)
     )
 
+    # Register record-fork tool (for tracking fork events)
+    server.register_tool(
+        name="record-fork",
+        description="Record a fork event for history tracking (internal tool, usually auto-called)",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "The session ID that was forked"
+                },
+                "query": {
+                    "type": "string",
+                    "description": "The query that led to this fork"
+                },
+                "position": {
+                    "type": "integer",
+                    "description": "Result position (1-5 for displayed results, -1 for custom)",
+                    "default": -1
+                }
+            },
+            "required": ["session_id", "query"]
+        },
+        handler=create_record_fork_handler(fork_history_service)
+    )
+
+    # Register get-fork-history tool
+    server.register_tool(
+        name="get-fork-history",
+        description="Get history of recently forked sessions",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of history entries to return (default: 10)",
+                    "default": 10
+                }
+            }
+        },
+        handler=create_fork_history_handler(fork_history_service)
+    )
+
     return server
 
 
@@ -560,6 +810,10 @@ def main() -> None:
 
     # Get Claude directory path
     claude_dir = str(Path.home() / ".claude")
+
+    # Initialize fork history service
+    fork_history_service = ForkHistoryService()
+    logger.info("Fork history service initialized")
 
     # Start background indexer if initialized
     if background_indexer is not None:
@@ -592,7 +846,8 @@ def main() -> None:
         search_service=search_service,
         background_indexer=background_indexer,
         claude_dir=claude_dir,
-        session_registry=session_registry
+        session_registry=session_registry,
+        fork_history_service=fork_history_service
     )
     server.run()
 

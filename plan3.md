@@ -85,7 +85,7 @@ These features provide significant user value with relatively straightforward im
       "Show project scope in results display",
       "Allow toggling between all/project scope"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "performance",

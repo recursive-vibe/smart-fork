@@ -222,7 +222,8 @@ class SelectionUI:
     def format_selection_prompt(
         self,
         options: List[SelectionOption],
-        query: str
+        query: str,
+        project_scope: Optional[str] = None
     ) -> str:
         """
         Format selection prompt for display.
@@ -230,6 +231,7 @@ class SelectionUI:
         Args:
             options: List of selection options
             query: Original search query
+            project_scope: Optional project scope description to display
 
         Returns:
             Formatted prompt string
@@ -238,7 +240,10 @@ class SelectionUI:
         lines.append("=" * 80)
         lines.append("Fork Detection - Select a Session")
         lines.append("=" * 80)
-        lines.append(f"\nYour query: {query}\n")
+        lines.append(f"\nYour query: {query}")
+        if project_scope:
+            lines.append(f"Scope: {project_scope}")
+        lines.append("")
 
         if not any(opt.session_id for opt in options):
             lines.append("No matching sessions found.")
@@ -325,7 +330,8 @@ class SelectionUI:
     def display_selection(
         self,
         search_results: List[SessionSearchResult],
-        query: str
+        query: str,
+        project_scope: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Display selection UI and return selection data.
@@ -333,6 +339,7 @@ class SelectionUI:
         Args:
             search_results: List of search results
             query: Original search query
+            project_scope: Optional project scope description to display
 
         Returns:
             Dictionary containing selection prompt and options
@@ -341,7 +348,7 @@ class SelectionUI:
         options = self.create_options(search_results, query)
 
         # Format prompt
-        prompt = self.format_selection_prompt(options, query)
+        prompt = self.format_selection_prompt(options, query, project_scope)
 
         # Return structured data
         return {
