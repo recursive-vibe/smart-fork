@@ -143,7 +143,12 @@ class TestInitialSetupInit:
 
         assert setup.storage_dir == Path("~/.smart-fork").expanduser()
         assert setup.claude_dir == Path("~/.claude").expanduser()
-        assert setup.progress_callback is None
+        # Default callback should be set when show_progress=True (default)
+        assert setup.progress_callback is not None
+
+        # Test with show_progress=False
+        setup_no_progress = InitialSetup(show_progress=False)
+        assert setup_no_progress.progress_callback is None
 
     def test_init_custom_paths(self):
         """Test initialization with custom paths."""
@@ -501,7 +506,7 @@ class TestInitialSetupIntegration:
 
         # Mock chunks
         mock_chunk = Mock()
-        mock_chunk.text = "test chunk"
+        mock_chunk.content = "test chunk"
         mock_chunk.start_index = 0
         mock_chunk.end_index = 1
         mock_chunk.message_indices = [0]

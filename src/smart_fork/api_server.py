@@ -163,19 +163,8 @@ async def search_chunks(request: SearchRequest) -> SearchResponse:
         # Calculate execution time
         execution_time_ms = (datetime.now() - start_time).total_seconds() * 1000
 
-        # Convert results to dict format
-        results_dict = [
-            {
-                "session_id": r.session_id,
-                "score": r.score,
-                "score_components": r.score_components,
-                "metadata": r.metadata,
-                "preview": r.preview,
-                "matched_chunks": r.matched_chunks,
-                "total_chunks": r.total_chunks
-            }
-            for r in results
-        ]
+        # Convert results to dict format using the to_dict method
+        results_dict = [r.to_dict() for r in results]
 
         return SearchResponse(
             query=request.query,
@@ -302,19 +291,9 @@ async def get_session(session_id: str) -> SessionResponse:
             )
 
         # Convert SessionMetadata to dict
-        metadata_dict = {
-            "project": metadata.project,
-            "created_at": metadata.created_at,
-            "updated_at": metadata.updated_at,
-            "last_synced": metadata.last_synced,
-            "chunk_count": metadata.chunk_count,
-            "message_count": metadata.message_count,
-            "tags": metadata.tags
-        }
-
         return SessionResponse(
             session_id=session_id,
-            metadata=metadata_dict
+            metadata=metadata.to_dict()
         )
 
     except HTTPException:

@@ -28,7 +28,7 @@ from .session_parser import SessionParser
 from .chunking_service import ChunkingService
 from .embedding_service import EmbeddingService
 from .vector_db_service import VectorDBService
-from .session_registry import SessionRegistry
+from .session_registry import SessionRegistry, SessionMetadata
 
 
 logger = logging.getLogger(__name__)
@@ -191,7 +191,7 @@ class BackgroundIndexer:
 
         # Shutdown executor
         if self._executor is not None:
-            self._executor.shutdown(wait=True, timeout=10)
+            self._executor.shutdown(wait=True, cancel_futures=True)
             self._executor = None
 
         logger.info("Background indexer stopped")
@@ -341,41 +341,51 @@ class BackgroundIndexer:
                 return
 
             # Generate embeddings
-            texts = [chunk.text for chunk in chunks]
+            texts = [chunk.content for chunk in chunks]
             embeddings = self.embedding_service.embed_texts(texts)
 
             # Delete old chunks for this session
             self.vector_db.delete_session_chunks(session_id)
 
             # Add new chunks with embeddings
-            chunk_data = []
-            for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                chunk_data.append({
-                    'id': f"{session_id}_chunk_{i}",
-                    'embedding': embedding,
-                    'text': chunk.text,
-                    'metadata': {
-                        'session_id': session_id,
-                        'chunk_index': i,
-                        'start_idx': chunk.start_idx,
-                        'end_idx': chunk.end_idx,
-                        'token_count': chunk.token_count
-                    }
+            chunk_texts = []
+            chunk_metadata = []
+            chunk_ids = []
+            for i, chunk in enumerate(chunks):
+                chunk_ids.append(f"{session_id}_chunk_{i}")
+                chunk_texts.append(chunk.content)
+                chunk_metadata.append({
+                    'session_id': session_id,
+                    'chunk_index': i,
+                    'start_index': chunk.start_index,
+                    'end_index': chunk.end_index,
+                    'token_count': chunk.token_count
                 })
 
-            self.vector_db.add_chunks(chunk_data)
+            self.vector_db.add_chunks(
+                chunks=chunk_texts,
+                embeddings=embeddings,
+                metadata=chunk_metadata,
+                chunk_ids=chunk_ids
+            )
 
             # Update session registry
             project = task.file_path.parent.name if task.file_path.parent.name != '.claude' else 'default'
 
-            self.session_registry.add_session(
+            created_at = session_data.created_at or datetime.now()
+            # Convert datetime to ISO string if needed
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+
+            session_metadata = SessionMetadata(
                 session_id=session_id,
                 project=project,
-                created_at=session_data.created_at or datetime.now(),
+                created_at=created_at,
                 message_count=len(session_data.messages),
                 chunk_count=len(chunks),
                 tags=[]
             )
+            self.session_registry.add_session(session_id, session_metadata)
 
             # Update statistics
             with self._stats_lock:

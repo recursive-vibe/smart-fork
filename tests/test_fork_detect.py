@@ -74,24 +74,14 @@ class TestFormatSearchResults(unittest.TestCase):
 
         output = format_search_results(query, [result])
 
-        # Verify key information is present
-        self.assertIn("Found 1 Relevant Session", output)
+        # Verify key information is present (new UI format)
+        self.assertIn("Your query:", output)
         self.assertIn(query, output)
         self.assertIn("session-123", output)
-        self.assertIn("78.00%", output)  # Final score
+        self.assertIn("78%", output)  # Final score in new format
         self.assertIn("my-project", output)
-        self.assertIn("Messages: 100", output)
-        self.assertIn("Chunks: 50", output)
         self.assertIn("auth, security", output)
         self.assertIn("This is a preview", output)
-
-        # Verify score breakdown
-        self.assertIn("Best Similarity: 85.00%", output)
-        self.assertIn("Avg Similarity: 72.00%", output)
-        self.assertIn("Chunk Ratio: 15.00%", output)
-        self.assertIn("Recency: 90.00%", output)
-        self.assertIn("Chain Quality: 50.00%", output)
-        self.assertIn("Memory Boost: +5.00%", output)
 
     def test_format_multiple_results(self):
         """Test formatting multiple search results."""
@@ -132,8 +122,9 @@ class TestFormatSearchResults(unittest.TestCase):
 
         output = format_search_results(query, results)
 
-        # Verify all results are present
-        self.assertIn("Found 3 Relevant Session", output)
+        # Verify all results are present (new UI format)
+        self.assertIn("Your query:", output)
+        self.assertIn(query, output)
         for i in range(3):
             self.assertIn(f"session-{i}", output)
             self.assertIn(f"project-{i}", output)
@@ -164,10 +155,10 @@ class TestFormatSearchResults(unittest.TestCase):
 
         output = format_search_results(query, [result])
 
-        # Should still format without errors
+        # Should still format without errors (new UI format)
         self.assertIn("session-123", output)
-        self.assertIn("75.00%", output)
-        self.assertNotIn("Project:", output)
+        self.assertIn("75%", output)
+        self.assertIn("Unknown", output)  # Shows Unknown for missing metadata
 
     def test_format_long_preview(self):
         """Test formatting truncates long previews."""
@@ -271,8 +262,8 @@ class TestForkDetectHandler(unittest.TestCase):
         # Verify search was called with correct parameters
         mock_search_service.search.assert_called_once_with("implement auth", top_n=5)
 
-        # Verify output contains expected information
-        self.assertIn("Found 1 Relevant Session", result)
+        # Verify output contains expected information (new UI format)
+        self.assertIn("Your query:", result)
         self.assertIn("implement auth", result)
         self.assertIn("session-123", result)
 

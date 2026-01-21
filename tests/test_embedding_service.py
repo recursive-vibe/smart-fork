@@ -3,6 +3,7 @@
 import gc
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 from smart_fork.embedding_service import EmbeddingService
@@ -123,7 +124,7 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = [[0.1] * 768]
+        mock_model.encode.return_value = np.array([[0.1] * 768])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService()
@@ -140,7 +141,7 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = [[0.1] * 768, [0.2] * 768, [0.3] * 768]
+        mock_model.encode.return_value = np.array([[0.1] * 768, [0.2] * 768, [0.3] * 768])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService()
@@ -175,7 +176,7 @@ class TestEmbeddingService:
 
         # Return different embeddings for each batch
         def encode_side_effect(texts, **kwargs):
-            return [[0.1] * 768 for _ in texts]
+            return np.array([[0.1] * 768 for _ in texts])
 
         mock_model.encode.side_effect = encode_side_effect
         mock_transformer.return_value = mock_model
@@ -198,7 +199,7 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = [[0.1] * 768 for _ in range(5)]
+        mock_model.encode.return_value = np.array([[0.1] * 768 for _ in range(5)])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService()
@@ -216,7 +217,7 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = [[0.5] * 768]
+        mock_model.encode.return_value = np.array([[0.5] * 768])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService()
@@ -245,14 +246,13 @@ class TestEmbeddingService:
         assert service.model is None
         mock_gc.assert_called_once()
 
-    @patch("gc.collect")
-    def test_unload_model_when_not_loaded(self, mock_gc):
+    def test_unload_model_when_not_loaded(self):
         """Test unloading when model is not loaded."""
         service = EmbeddingService()
         service.unload_model()
 
+        # Model should remain None, no error raised
         assert service.model is None
-        mock_gc.assert_called_once()
 
 
 class TestEmbeddingServiceIntegration:

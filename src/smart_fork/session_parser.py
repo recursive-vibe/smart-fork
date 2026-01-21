@@ -229,7 +229,29 @@ class SessionParser:
         elif 'text' in data:
             content = data['text']
         elif 'message' in data:
-            content = data['message']
+            # Handle nested message structure from Claude Code format
+            msg = data['message']
+            if isinstance(msg, dict):
+                # Extract role from nested message if not already set
+                if 'role' in msg:
+                    role = msg['role']
+                # Extract content from nested message
+                if 'content' in msg:
+                    content_data = msg['content']
+                    if isinstance(content_data, str):
+                        content = content_data
+                    elif isinstance(content_data, list):
+                        text_parts = []
+                        for block in content_data:
+                            if isinstance(block, dict) and 'text' in block:
+                                text_parts.append(block['text'])
+                            elif isinstance(block, str):
+                                text_parts.append(block)
+                        content = '\n'.join(text_parts) if text_parts else None
+                    else:
+                        content = str(content_data)
+            else:
+                content = str(msg)
         else:
             # Skip messages without content
             logger.debug(f"Skipping message without content: {data.keys()}")

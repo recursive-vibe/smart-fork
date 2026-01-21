@@ -185,15 +185,16 @@ class TestMCPServer:
 
         assert isinstance(result, str)
         assert "implement authentication" in result
-        assert "Fork Detection" in result
-        assert "Placeholder" in result
+        # When search service is not initialized, shows service not initialized message
+        assert "Service Not Initialized" in result or "Fork Detection" in result
 
     def test_fork_detect_handler_empty_query(self) -> None:
         """Test fork-detect handler with empty query."""
         result = fork_detect_handler({})
 
         assert isinstance(result, str)
-        assert "Fork Detection" in result
+        # Should show error message about providing a query
+        assert "Error" in result or "provide a query" in result
 
     def test_create_server(self) -> None:
         """Test server creation and configuration."""

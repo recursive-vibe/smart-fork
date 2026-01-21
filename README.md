@@ -47,12 +47,13 @@ Smart Fork Detection solves the "context loss" problem in AI-assisted developmen
 - Claude Code (with MCP support)
 - 2GB+ RAM recommended for embedding model
 - 500MB+ disk space for vector database
+- `einops` package (required by nomic-embed-text model)
 
 ### Install from Source
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-org/smart-fork.git
+git clone https://github.com/yourusername/smart-fork.git
 cd smart-fork
 ```
 
@@ -82,27 +83,48 @@ python -c "import smart_fork; print(smart_fork.__version__)"
 
 ### Configure Claude Code MCP
 
-Add Smart Fork to your Claude Code MCP configuration file (`~/.claude/mcp_config.json`):
+Add Smart Fork to your Claude Code MCP configuration file (`~/.claude/mcp_servers.json`):
 
 ```json
 {
   "mcpServers": {
     "smart-fork": {
-      "command": "smart-fork",
-      "args": [],
-      "env": {}
+      "command": "/path/to/smart-fork/venv/bin/python",
+      "args": ["-m", "smart_fork.server"],
+      "cwd": "/path/to/smart-fork/src",
+      "env": {
+        "PYTHONPATH": "/path/to/smart-fork/src"
+      }
     }
   }
 }
 ```
 
-Restart Claude Code to load the MCP server.
+Replace `/path/to/smart-fork` with your actual installation path.
+
+Restart Claude Code (or reload the VSCode window) to load the MCP server.
 
 ## Quick Start
 
 1. **Start Claude Code** - The Smart Fork server will automatically start in the background and begin indexing your existing sessions.
 
 2. **First Run Setup** - On first launch, Smart Fork will scan `~/.claude/` for existing session files and build the initial database. This may take a few minutes depending on how many sessions you have.
+
+   **Manual Initial Indexing** (recommended for first run):
+   ```bash
+   cd /path/to/smart-fork
+   source venv/bin/activate
+   python -c "
+   import sys
+   sys.path.insert(0, 'src')
+   from smart_fork.initial_setup import InitialSetup
+   setup = InitialSetup()
+   result = setup.run_setup()
+   print(result)
+   "
+   ```
+
+   **Note**: Large session files (>1MB) may take longer to process. Sessions with no parseable messages will be skipped.
 
 3. **Invoke the Tool** - In any Claude Code session, type:
    ```
@@ -400,6 +422,12 @@ Sessions containing Claude memory markers receive bonus scores:
 These boosts help prioritize sessions with proven solutions and documented patterns.
 
 ## Troubleshooting
+
+### Known Limitations
+
+- **Large Sessions**: Sessions over 1MB may take significantly longer to index. Consider using a timeout-based indexing script for initial setup.
+- **Empty Sessions**: Sessions with no parseable messages are skipped automatically.
+- **Claude Code Format**: Only Claude Code JSONL format is supported. The parser handles nested `message` structures with `role` and `content` fields.
 
 ### Common Issues
 
@@ -736,6 +764,31 @@ print(f"Total chunks: {stats['total_chunks']}")
 print(f"Total sessions: {stats['total_sessions']}")
 ```
 
+## Roadmap
+
+### Current Development (v1.1)
+
+The following improvements are actively being developed:
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Progress Display | In Progress | Show "Indexing session X of Y" with time estimates |
+| MCP Tool Verification | In Progress | Ensure tools are properly exposed to Claude Code |
+| Real-time Indexing | In Progress | Verify watchdog file monitoring is active |
+| Timeout Handling | Planned | Skip sessions that take too long, retry later |
+| Session Preview | Planned | View session content before forking |
+| Graceful Resume | Planned | Resume interrupted initial setup |
+
+### Future Enhancements (v1.2+)
+
+- **Chain Quality Tracking**: Track success rates of forked sessions
+- **Search Filters**: Filter by project, date range, or tags
+- **Session Organization**: Automatic topic clustering and tagging
+- **Team Features**: Shared session libraries with privacy controls
+- **IDE Plugins**: VS Code and JetBrains integrations
+
+See [plan2.md](plan2.md) for detailed implementation tasks.
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -753,6 +806,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Troubleshooting?** Check the [Troubleshooting](#troubleshooting) section above or [open an issue](https://github.com/your-org/smart-fork/issues).
+**Troubleshooting?** Check the [Troubleshooting](#troubleshooting) section above or [open an issue](https://github.com/yourusername/smart-fork/issues).
 
-**Questions?** Join our [discussions](https://github.com/your-org/smart-fork/discussions) or reach out to the team.
+**Questions?** Join our [discussions](https://github.com/yourusername/smart-fork/discussions) or reach out to the team.

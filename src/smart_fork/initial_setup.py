@@ -17,9 +17,88 @@ from .session_parser import SessionParser
 from .chunking_service import ChunkingService
 from .embedding_service import EmbeddingService
 from .vector_db_service import VectorDBService
-from .session_registry import SessionRegistry
+from .session_registry import SessionRegistry, SessionMetadata
 
 logger = logging.getLogger(__name__)
+
+
+def _format_time(seconds: float) -> str:
+    """
+    Format seconds into a human-readable time string.
+
+    Args:
+        seconds: Time in seconds
+
+    Returns:
+        Formatted time string (e.g., "2m 30s", "1h 15m")
+    """
+    if seconds < 60:
+        return f"{int(seconds)}s"
+    elif seconds < 3600:
+        minutes = int(seconds / 60)
+        secs = int(seconds % 60)
+        return f"{minutes}m {secs}s"
+    else:
+        hours = int(seconds / 3600)
+        minutes = int((seconds % 3600) / 60)
+        return f"{hours}h {minutes}m"
+
+
+def _format_bytes(num_bytes: int) -> str:
+    """
+    Format bytes into a human-readable size string.
+
+    Args:
+        num_bytes: Size in bytes
+
+    Returns:
+        Formatted size string (e.g., "1.5 MB", "512 KB")
+    """
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if num_bytes < 1024.0:
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f} TB"
+
+
+def default_progress_callback(progress: 'SetupProgress') -> None:
+    """
+    Default console progress callback.
+
+    Displays progress information to stdout, including:
+    - Current file being processed
+    - Progress counter (X of Y files)
+    - Percentage complete
+    - Elapsed time
+    - Estimated time remaining
+
+    Args:
+        progress: Progress information
+    """
+    if progress.is_complete:
+        # Final completion message
+        print(f"\n✓ Setup complete!")
+        print(f"  Processed: {progress.processed_files} files")
+        print(f"  Total chunks: {progress.total_chunks}")
+        print(f"  Time elapsed: {_format_time(progress.elapsed_time)}")
+    elif progress.error:
+        # Error message
+        print(f"\n✗ Error: {progress.error}")
+    else:
+        # Progress update
+        percent = (progress.processed_files / progress.total_files * 100) if progress.total_files > 0 else 0
+        print(f"Indexing session {progress.processed_files + 1} of {progress.total_files} ({percent:.1f}%)", end='')
+
+        if progress.current_file:
+            print(f" - {progress.current_file}", end='')
+
+        if progress.elapsed_time > 0:
+            print(f" | Elapsed: {_format_time(progress.elapsed_time)}", end='')
+
+        if progress.estimated_remaining > 0:
+            print(f" | ETA: {_format_time(progress.estimated_remaining)}", end='')
+
+        print()  # New line
 
 
 @dataclass
@@ -69,7 +148,8 @@ class InitialSetup:
         self,
         storage_dir: str = "~/.smart-fork",
         claude_dir: str = "~/.claude",
-        progress_callback: Optional[Callable[[SetupProgress], None]] = None
+        progress_callback: Optional[Callable[[SetupProgress], None]] = None,
+        show_progress: bool = True
     ):
         """
         Initialize the setup manager.
@@ -78,10 +158,16 @@ class InitialSetup:
             storage_dir: Directory for Smart Fork data
             claude_dir: Directory containing Claude Code sessions
             progress_callback: Optional callback for progress updates
+            show_progress: Whether to show default console progress (default: True)
         """
         self.storage_dir = Path(storage_dir).expanduser()
         self.claude_dir = Path(claude_dir).expanduser()
-        self.progress_callback = progress_callback
+
+        # Use default progress callback if none provided and show_progress is True
+        if progress_callback is None and show_progress:
+            self.progress_callback = default_progress_callback
+        else:
+            self.progress_callback = progress_callback
 
         self.state_file = self.storage_dir / "setup_state.json"
         self.session_parser = SessionParser()
@@ -194,7 +280,7 @@ class InitialSetup:
             persist_directory=str(self.storage_dir / "vector_db")
         )
         self.session_registry = SessionRegistry(
-            storage_path=str(self.storage_dir / "session-registry.json")
+            registry_path=str(self.storage_dir / "session-registry.json")
         )
 
     def _process_session_file(
@@ -241,35 +327,44 @@ class InitialSetup:
                 }
 
             # Extract text from chunks
-            chunk_texts = [chunk.text for chunk in chunks]
+            chunk_texts = [chunk.content for chunk in chunks]
 
             # Generate embeddings
             embeddings = self.embedding_service.embed_texts(chunk_texts)
 
             # Prepare chunks for vector DB
-            chunk_records = []
-            for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                chunk_records.append({
-                    'id': f"{session_id}_{i}",
-                    'text': chunk.text,
-                    'embedding': embedding,
-                    'metadata': {
-                        'session_id': session_id,
-                        'chunk_index': i,
-                        'start_index': chunk.start_index,
-                        'end_index': chunk.end_index,
-                        'message_count': len(chunk.message_indices)
-                    }
+            chunk_ids = []
+            chunk_metadata = []
+            for i, chunk in enumerate(chunks):
+                chunk_ids.append(f"{session_id}_{i}")
+                chunk_metadata.append({
+                    'session_id': session_id,
+                    'chunk_index': i,
+                    'start_index': chunk.start_index,
+                    'end_index': chunk.end_index
                 })
 
             # Add to vector database
-            self.vector_db_service.add_chunks(chunk_records)
+            self.vector_db_service.add_chunks(
+                chunks=chunk_texts,
+                embeddings=embeddings,
+                metadata=chunk_metadata,
+                chunk_ids=chunk_ids
+            )
 
             # Add to session registry
             project = self._extract_project(file_path)
-            created_at = session_data.messages[0].timestamp if session_data.messages else None
+            # Convert datetime to ISO string for JSON serialization
+            created_at = None
+            if session_data.messages and session_data.messages[0].timestamp:
+                ts = session_data.messages[0].timestamp
+                # Handle both datetime objects and ISO strings
+                if isinstance(ts, str):
+                    created_at = ts
+                else:
+                    created_at = ts.isoformat()
 
-            self.session_registry.add_session(
+            session_metadata = SessionMetadata(
                 session_id=session_id,
                 project=project,
                 created_at=created_at,
@@ -277,6 +372,7 @@ class InitialSetup:
                 message_count=len(session_data.messages),
                 tags=[]
             )
+            self.session_registry.add_session(session_id, session_metadata)
 
             return {
                 'session_id': session_id,

@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from smart_fork.api_server import app, SearchRequest, IndexRequest
+from smart_fork.scoring_service import SessionScore
 from smart_fork.search_service import SessionSearchResult
 from smart_fork.session_registry import SessionMetadata
 
@@ -129,27 +130,32 @@ def test_index_request_defaults():
 def test_search_chunks_success(client, mock_search_service):
     """Test successful chunk search."""
     # Setup mock response
+    mock_score = SessionScore(
+        session_id="test-session",
+        final_score=0.85,
+        best_similarity=0.9,
+        avg_similarity=0.8,
+        chunk_ratio=0.5,
+        recency_score=0.7,
+        chain_quality=0.5,
+        memory_boost=0.0,
+        num_chunks_matched=5
+    )
+    mock_metadata = SessionMetadata(
+        session_id="test-session",
+        project="test-project",
+        created_at="2024-01-01T00:00:00",
+        last_modified="2024-01-02T00:00:00",
+        chunk_count=10,
+        message_count=50,
+        tags=["tag1"]
+    )
     mock_result = SessionSearchResult(
         session_id="test-session",
-        score=0.85,
-        score_components={
-            "best_similarity": 0.9,
-            "avg_similarity": 0.8,
-            "chunk_ratio": 0.5,
-            "recency": 0.7,
-            "chain_quality": 0.5
-        },
-        metadata={
-            "project": "test-project",
-            "created_at": "2024-01-01T00:00:00",
-            "updated_at": "2024-01-02T00:00:00",
-            "chunk_count": 10,
-            "message_count": 50,
-            "tags": ["tag1"]
-        },
+        score=mock_score,
+        metadata=mock_metadata,
         preview="This is a preview...",
-        matched_chunks=5,
-        total_chunks=10
+        matched_chunks=[]
     )
     mock_search_service.search.return_value = [mock_result]
 
@@ -170,7 +176,7 @@ def test_search_chunks_success(client, mock_search_service):
     assert data["total_results"] == 1
     assert len(data["results"]) == 1
     assert data["results"][0]["session_id"] == "test-session"
-    assert data["results"][0]["score"] == 0.85
+    assert data["results"][0]["score"]["final_score"] == 0.85
     assert "execution_time_ms" in data
 
     # Verify search service was called correctly
@@ -281,9 +287,10 @@ def test_index_session_already_indexed(client, mock_background_indexer, mock_ses
 
     # Setup mock - session already exists
     mock_metadata = SessionMetadata(
+        session_id="test-session",
         project="test-project",
         created_at="2024-01-01T00:00:00",
-        updated_at="2024-01-02T00:00:00",
+        last_modified="2024-01-02T00:00:00",
         last_synced="2024-01-02T00:00:00",
         chunk_count=10,
         message_count=50,
@@ -315,9 +322,10 @@ def test_index_session_force_reindex(client, mock_background_indexer, mock_sessi
 
     # Setup mocks
     mock_metadata = SessionMetadata(
+        session_id="test-session",
         project="test-project",
         created_at="2024-01-01T00:00:00",
-        updated_at="2024-01-02T00:00:00",
+        last_modified="2024-01-02T00:00:00",
         last_synced="2024-01-02T00:00:00",
         chunk_count=10,
         message_count=50,
@@ -386,9 +394,10 @@ def test_get_session_success(client, mock_session_registry):
     """Test successful session retrieval."""
     # Setup mock
     mock_metadata = SessionMetadata(
+        session_id="test-session",
         project="test-project",
         created_at="2024-01-01T00:00:00",
-        updated_at="2024-01-02T00:00:00",
+        last_modified="2024-01-02T00:00:00",
         last_synced="2024-01-02T00:00:00",
         chunk_count=10,
         message_count=50,

@@ -47,13 +47,15 @@ class TestForkDetectEndToEnd:
             SessionSearchResult(
                 session_id="session-123",
                 score=SessionScore(
+                    session_id="session-123",
                     best_similarity=0.92,
                     avg_similarity=0.85,
                     chunk_ratio=0.75,
-                    recency=0.95,
+                    recency_score=0.95,
                     chain_quality=0.5,
                     memory_boost=0.08,
-                    final_score=0.876
+                    final_score=0.876,
+                    num_chunks_matched=5
                 ),
                 metadata={
                     "project": "my-project",
@@ -62,18 +64,21 @@ class TestForkDetectEndToEnd:
                     "chunk_count": 12,
                     "tags": ["authentication", "bug-fix"]
                 },
-                preview="Implemented JWT authentication with refresh tokens. Working solution tested."
+                preview="Implemented JWT authentication with refresh tokens. Working solution tested.",
+                matched_chunks=[]
             ),
             SessionSearchResult(
                 session_id="session-456",
                 score=SessionScore(
+                    session_id="session-456",
                     best_similarity=0.88,
                     avg_similarity=0.80,
                     chunk_ratio=0.65,
-                    recency=0.90,
+                    recency_score=0.90,
                     chain_quality=0.5,
                     memory_boost=0.05,
-                    final_score=0.824
+                    final_score=0.824,
+                    num_chunks_matched=4
                 ),
                 metadata={
                     "project": "my-project",
@@ -82,18 +87,21 @@ class TestForkDetectEndToEnd:
                     "chunk_count": 9,
                     "tags": ["api", "design-pattern"]
                 },
-                preview="Designed REST API architecture using repository pattern. Approach documented."
+                preview="Designed REST API architecture using repository pattern. Approach documented.",
+                matched_chunks=[]
             ),
             SessionSearchResult(
                 session_id="session-789",
                 score=SessionScore(
+                    session_id="session-789",
                     best_similarity=0.82,
                     avg_similarity=0.75,
                     chunk_ratio=0.55,
-                    recency=0.85,
+                    recency_score=0.85,
                     chain_quality=0.5,
                     memory_boost=0.02,
-                    final_score=0.762
+                    final_score=0.762,
+                    num_chunks_matched=3
                 ),
                 metadata={
                     "project": "other-project",
@@ -102,7 +110,8 @@ class TestForkDetectEndToEnd:
                     "chunk_count": 8,
                     "tags": ["database", "waiting"]
                 },
-                preview="Database migration pending. Waiting for review before proceeding."
+                preview="Database migration pending. Waiting for review before proceeding.",
+                matched_chunks=[]
             )
         ]
 
@@ -462,10 +471,10 @@ class TestForkDetectEdgeCases:
         assert result is not None
         service.search.assert_called_once()
 
-    def test_session_file_not_found(self, temp_storage):
+    def test_session_file_not_found(self, tmp_path):
         """Test fork generator when session file doesn't exist."""
         generator = ForkGenerator(
-            claude_sessions_dir=temp_storage,
+            claude_sessions_dir=str(tmp_path),
             registry=Mock(spec=SessionRegistry)
         )
 
@@ -493,20 +502,22 @@ class TestForkDetectEdgeCases:
         assert options[3].action == "start_fresh"
         assert options[4].action == "refine"
 
-    def test_selection_with_single_result(self, temp_storage):
+    def test_selection_with_single_result(self):
         """Test selection UI with only one search result."""
         ui = SelectionUI()
         results = [
             SessionSearchResult(
                 session_id="session-only",
                 score=SessionScore(
+                    session_id="session-only",
                     best_similarity=0.9,
                     avg_similarity=0.8,
                     chunk_ratio=0.7,
-                    recency=0.95,
+                    recency_score=0.95,
                     chain_quality=0.5,
                     memory_boost=0.0,
-                    final_score=0.85
+                    final_score=0.85,
+                    num_chunks_matched=2
                 ),
                 metadata={
                     "project": "test",
@@ -515,7 +526,8 @@ class TestForkDetectEdgeCases:
                     "chunk_count": 3,
                     "tags": []
                 },
-                preview="Only result"
+                preview="Only result",
+                matched_chunks=[]
             )
         ]
 

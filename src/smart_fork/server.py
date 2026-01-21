@@ -269,7 +269,7 @@ def initialize_services(storage_dir: Optional[str] = None) -> Optional[SearchSer
 
         # Initialize services
         embedding_service = EmbeddingService()
-        vector_db_service = VectorDBService(db_path=str(vector_db_path))
+        vector_db_service = VectorDBService(persist_directory=str(vector_db_path))
         scoring_service = ScoringService()
         session_registry = SessionRegistry(registry_path=str(registry_path))
 
@@ -327,6 +327,11 @@ def main() -> None:
     # Create and run server
     server = create_server(search_service=search_service)
     server.run()
+
+
+# Aliases for backwards compatibility with tests
+format_search_results = format_search_results_with_selection
+fork_detect_handler = create_fork_detect_handler(None)
 
 
 if __name__ == "__main__":

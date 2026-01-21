@@ -23,9 +23,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "fastmcp>=0.1.0",
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
+    "einops>=0.7.0",  # Required by nomic-embed-text model
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "watchdog>=3.0.0",

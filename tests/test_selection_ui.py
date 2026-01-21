@@ -30,13 +30,15 @@ def create_mock_result(
 ) -> SessionSearchResult:
     """Create a mock search result for testing."""
     session_score = SessionScore(
+        session_id=session_id,
         final_score=score,
         best_similarity=score * 0.4,
         avg_similarity=score * 0.2,
         chunk_ratio=score * 0.05,
         recency_score=score * 0.25,
         chain_quality=0.5,
-        memory_boost=0.0
+        memory_boost=0.0,
+        num_chunks_matched=5
     )
 
     metadata = MockSessionMetadata(

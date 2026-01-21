@@ -284,14 +284,14 @@ def run_tests():
             )
 
             # Generate embeddings
-            texts = [chunk.text for chunk in chunks]
+            texts = [chunk.content for chunk in chunks]
             embeddings = embedding_service.embed_texts(texts)
 
             # Store in vector database
             for j, (chunk, emb) in enumerate(zip(chunks, embeddings)):
                 vector_db_service.add_chunks(
                     embeddings=[emb],
-                    texts=[chunk.text],
+                    texts=[chunk.content],
                     metadatas=[{
                         "session_id": session["session_id"],
                         "project": session["project"],

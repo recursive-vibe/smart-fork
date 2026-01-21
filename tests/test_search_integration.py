@@ -256,7 +256,7 @@ class TestSearchIntegration:
     def services(self, temp_dir):
         """Initialize all services for testing."""
         embedding_service = EmbeddingService()
-        vector_db_service = VectorDBService(storage_path=temp_dir)
+        vector_db_service = VectorDBService(persist_directory=temp_dir)
         scoring_service = ScoringService()
         registry_path = os.path.join(temp_dir, "session-registry.json")
         session_registry = SessionRegistry(registry_path=registry_path)
@@ -300,14 +300,14 @@ class TestSearchIntegration:
             )
 
             # Generate embeddings
-            texts = [chunk.text for chunk in chunks]
+            texts = [chunk.content for chunk in chunks]
             embeddings = embedding.embed_texts(texts)
 
             # Store in vector database
             for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
                 vector_db.add_chunks(
                     embeddings=[emb],
-                    texts=[chunk.text],
+                    texts=[chunk.content],
                     metadatas=[{
                         "session_id": session["session_id"],
                         "project": session["project"],
@@ -465,7 +465,7 @@ class TestSearchIntegrationEdgeCases:
     def services(self, temp_dir):
         """Initialize all services for testing."""
         embedding_service = EmbeddingService()
-        vector_db_service = VectorDBService(storage_path=temp_dir)
+        vector_db_service = VectorDBService(persist_directory=temp_dir)
         scoring_service = ScoringService()
         registry_path = os.path.join(temp_dir, "session-registry.json")
         session_registry = SessionRegistry(registry_path=registry_path)

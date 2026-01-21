@@ -117,7 +117,7 @@ def services(temp_storage):
     chunking_service = ChunkingService()
     search_service = SearchService(
         embedding_service=embedding_service,
-        vector_db=vector_db,
+        vector_db_service=vector_db,
         scoring_service=scoring_service,
         session_registry=session_registry
     )

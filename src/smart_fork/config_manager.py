@@ -126,7 +126,7 @@ class ConfigManager:
 
         self.config_path = Path(config_path)
         self._config: Optional[Config] = None
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # RLock to allow reentrant calls (get -> load)
 
     def load(self) -> Config:
         """Load configuration from file or create default.

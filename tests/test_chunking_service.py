@@ -73,8 +73,7 @@ class TestChunkingService:
             SessionMessage(
                 role="user",
                 content="Hello, how are you?",
-                timestamp=None,
-                model=None
+                timestamp=None
             )
         ]
         chunks = self.service.chunk_messages(messages)
@@ -87,9 +86,9 @@ class TestChunkingService:
     def test_chunk_messages_small_conversation(self):
         """Test chunking with small conversation (all in one chunk)."""
         messages = [
-            SessionMessage(role="user", content="What is Python?", timestamp=None, model=None),
-            SessionMessage(role="assistant", content="Python is a programming language.", timestamp=None, model=None),
-            SessionMessage(role="user", content="Thanks!", timestamp=None, model=None)
+            SessionMessage(role="user", content="What is Python?", timestamp=None),
+            SessionMessage(role="assistant", content="Python is a programming language.", timestamp=None),
+            SessionMessage(role="user", content="Thanks!", timestamp=None)
         ]
 
         chunks = self.service.chunk_messages(messages)
@@ -106,9 +105,9 @@ class TestChunkingService:
         large_text = "word " * 1000  # ~5000 chars = ~1250 tokens
 
         messages = [
-            SessionMessage(role="user", content=large_text, timestamp=None, model=None),
-            SessionMessage(role="assistant", content=large_text, timestamp=None, model=None),
-            SessionMessage(role="user", content="Follow up", timestamp=None, model=None),
+            SessionMessage(role="user", content=large_text, timestamp=None),
+            SessionMessage(role="assistant", content=large_text, timestamp=None),
+            SessionMessage(role="user", content="Follow up", timestamp=None),
         ]
 
         chunks = self.service.chunk_messages(messages)
@@ -125,10 +124,10 @@ class TestChunkingService:
         """Test that conversation turns (user + assistant) stay together when possible."""
         # Create a conversation with clear turns
         messages = [
-            SessionMessage(role="user", content="Question 1 " * 50, timestamp=None, model=None),
-            SessionMessage(role="assistant", content="Answer 1 " * 50, timestamp=None, model=None),
-            SessionMessage(role="user", content="Question 2 " * 50, timestamp=None, model=None),
-            SessionMessage(role="assistant", content="Answer 2 " * 50, timestamp=None, model=None),
+            SessionMessage(role="user", content="Question 1 " * 50, timestamp=None),
+            SessionMessage(role="assistant", content="Answer 1 " * 50, timestamp=None),
+            SessionMessage(role="user", content="Question 2 " * 50, timestamp=None),
+            SessionMessage(role="assistant", content="Answer 2 " * 50, timestamp=None),
         ]
 
         chunks = self.service.chunk_messages(messages)
@@ -148,16 +147,14 @@ class TestChunkingService:
                 SessionMessage(
                     role="user",
                     content=f"User message {i} " * 100,
-                    timestamp=None,
-                    model=None
+                    timestamp=None
                 )
             )
             messages.append(
                 SessionMessage(
                     role="assistant",
                     content=f"Assistant response {i} " * 100,
-                    timestamp=None,
-                    model=None
+                    timestamp=None
                 )
             )
 
@@ -182,8 +179,8 @@ class TestChunkingService:
         huge_text = "word " * 2000  # ~10,000 chars = ~2500 tokens
 
         messages = [
-            SessionMessage(role="user", content=huge_text, timestamp=None, model=None),
-            SessionMessage(role="assistant", content=huge_text, timestamp=None, model=None),
+            SessionMessage(role="user", content=huge_text, timestamp=None),
+            SessionMessage(role="assistant", content=huge_text, timestamp=None),
         ]
 
         chunks = self.service.chunk_messages(messages)
@@ -320,16 +317,14 @@ class TestChunkingService:
                 SessionMessage(
                     role="user",
                     content=f"User question {i}? " * 80,
-                    timestamp=None,
-                    model=None
+                    timestamp=None
                 )
             )
             messages.append(
                 SessionMessage(
                     role="assistant",
                     content=f"Assistant answer {i}. " * 80,
-                    timestamp=None,
-                    model=None
+                    timestamp=None
                 )
             )
 
@@ -344,9 +339,9 @@ class TestChunkingService:
     def test_chunk_content_matches_messages(self):
         """Test that chunk content actually comes from the messages."""
         messages = [
-            SessionMessage(role="user", content="First message", timestamp=None, model=None),
-            SessionMessage(role="assistant", content="Second message", timestamp=None, model=None),
-            SessionMessage(role="user", content="Third message", timestamp=None, model=None),
+            SessionMessage(role="user", content="First message", timestamp=None),
+            SessionMessage(role="assistant", content="Second message", timestamp=None),
+            SessionMessage(role="user", content="Third message", timestamp=None),
         ]
 
         chunks = self.service.chunk_messages(messages)
@@ -368,8 +363,7 @@ class TestChunkingService:
                 SessionMessage(
                     role="user",
                     content=f"Message {i} " * 50,
-                    timestamp=None,
-                    model=None
+                    timestamp=None
                 )
             )
 
@@ -395,8 +389,7 @@ class TestChunkingService:
             SessionMessage(
                 role="user",
                 content=huge_content,
-                timestamp=None,
-                model=None
+                timestamp=None
             )
         ]
 
