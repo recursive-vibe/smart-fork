@@ -4,8 +4,6 @@ We are rebuilding the project from scratch in this repo.
 
 First read activity.md to see what was recently accomplished.
 
-Start the server locally with `python -m smart_fork.server`. If port is taken, try another port.
-
 Open plan.md and choose the single highest priority task where passes is false.
 
 Work on exactly ONE task: implement the change.
