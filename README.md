@@ -15,6 +15,35 @@ Smart Fork Detection solves the "context loss" problem in AI-assisted developmen
 - **Knowledge Reuse**: Transform hundreds of isolated sessions into connected, searchable knowledge
 - **Productivity Boost**: Reduce context rebuilding time from minutes to seconds
 
+## Features
+
+### Core Capabilities
+- ✅ **Semantic Search** - AI-powered search across all your Claude Code sessions
+- ✅ **Smart Session Forking** - Resume from the most relevant conversation
+- ✅ **Background Indexing** - Automatic real-time indexing of new sessions
+- ✅ **Project-Scoped Search** - Filter results by project directory
+- ✅ **Fork History Tracking** - Keep track of recently forked sessions
+
+### Performance & Intelligence
+- ✅ **Query Result Caching** - 50%+ faster repeat searches
+- ✅ **Embedding Cache** - Skip re-computing embeddings for unchanged content
+- ✅ **Preference Learning** - Improves results based on your fork selections
+- ✅ **Temporal Search** - Find sessions by date ("last Tuesday", "2 weeks ago")
+- ✅ **Multi-Threaded Indexing** - 2-3x faster initial setup with parallel processing
+
+### Organization & Analysis
+- ✅ **Session Tagging** - Organize sessions with custom tags
+- ✅ **Topic Clustering** - Automatic grouping of related sessions (k-means)
+- ✅ **Session Summaries** - TF-IDF extractive summaries with key topics
+- ✅ **Session Diff Tool** - Semantic comparison between sessions
+- ✅ **Duplicate Detection** - Find similar sessions automatically
+- ✅ **Session Archiving** - Archive old sessions to separate database
+
+### Integrations
+- ✅ **MCP Protocol** - Native integration with Claude Code
+- ✅ **VS Code Extension** - Search and fork directly from VS Code (beta)
+- ✅ **CLI Tools** - Command-line access to all features
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -53,8 +82,8 @@ Smart Fork Detection solves the "context loss" problem in AI-assisted developmen
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/smart-fork.git
-cd smart-fork
+git clone https://github.com/austinwentzel/Smart-Fork.git
+cd Smart-Fork
 ```
 
 2. Create and activate a virtual environment:
@@ -844,28 +873,30 @@ print(f"Total sessions: {stats['total_sessions']}")
 
 ## Roadmap
 
-### Current Development (v1.1)
+### Latest Release (v1.0)
 
-The following improvements are actively being developed:
+All Phase 1-3 features are complete and production-ready:
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Progress Display | In Progress | Show "Indexing session X of Y" with time estimates |
-| MCP Tool Verification | In Progress | Ensure tools are properly exposed to Claude Code |
-| Real-time Indexing | In Progress | Verify watchdog file monitoring is active |
-| Timeout Handling | Planned | Skip sessions that take too long, retry later |
-| Session Preview | Planned | View session content before forking |
-| Graceful Resume | Planned | Resume interrupted initial setup |
+**Phase 1 (MVP)**: ✅ Complete
+- Semantic search, background indexing, MCP integration
 
-### Future Enhancements (v1.2+)
+**Phase 2 (Enhancements)**: ✅ Complete
+- Progress display, timeout handling, session preview
 
-- **Chain Quality Tracking**: Track success rates of forked sessions
-- **Search Filters**: Filter by project, date range, or tags
-- **Session Organization**: Automatic topic clustering and tagging
+**Phase 3 (Advanced Features)**: ✅ Complete
+- Caching, fork history, project filters, temporal search, tagging
+- Clustering, summarization, diff tool, archiving, VS Code extension
+
+### Future Enhancements (v1.1+)
+
+- **Chain Quality Tracking**: Track success rates of forked sessions to improve recommendations
+- **Advanced Search Filters**: Boolean operators, regex patterns, metadata filters
 - **Team Features**: Shared session libraries with privacy controls
-- **IDE Plugins**: VS Code and JetBrains integrations
+- **More IDE Plugins**: JetBrains, Cursor, other Claude-compatible editors
+- **Session Analytics**: Usage patterns, productivity metrics, knowledge graphs
+- **Cloud Sync**: Optional encrypted sync across devices (privacy-first)
 
-See [plan2.md](plan2.md) for detailed implementation tasks.
+Want to contribute? See the [Contributing](#contributing) section below!
 
 ## Contributing
 
@@ -884,6 +915,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Troubleshooting?** Check the [Troubleshooting](#troubleshooting) section above or [open an issue](https://github.com/yourusername/smart-fork/issues).
+**Troubleshooting?** Check the [Troubleshooting](#troubleshooting) section above or [open an issue](https://github.com/austinwentzel/Smart-Fork/issues).
 
-**Questions?** Join our [discussions](https://github.com/yourusername/smart-fork/discussions) or reach out to the team.
+**Questions?** Join our [discussions](https://github.com/austinwentzel/Smart-Fork/discussions) or reach out on GitHub.
