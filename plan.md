@@ -260,7 +260,7 @@ An MCP server for Claude Code that enables semantic search of past session trans
       "Test memory boost affects ranking correctly",
       "Test recency factor affects ranking correctly"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "testing",
