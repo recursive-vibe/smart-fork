@@ -19,10 +19,10 @@
 
 ## Current Status
 <!-- Updated after each task completion -->
-**Last Updated:** 2026-01-21 23:45
+**Last Updated:** 2026-01-21 23:58
 **Phase:** 2 (Gap Remediation)
-**Tasks Completed:** 1/11
-**Current Task:** Task 2 - Verify and fix MCP server tool registration
+**Tasks Completed:** 2/11
+**Current Task:** Task 3 - Verify background indexer watchdog integration
 
 ---
 
@@ -156,6 +156,47 @@ These issues were discovered and fixed before Phase 2 started:
 
 **Next:**
 - Task 2: Verify and fix MCP server tool registration
+
+**Blockers:**
+- None
+
+---
+
+### 2026-01-21 23:58
+**Task:** Verify and fix MCP server tool registration
+**Priority:** P1
+
+**Changes Made:**
+- Created `verify_mcp_tools.py` comprehensive verification script
+- Tested all aspects of MCP server tool registration
+- Verified protocol compliance (JSON-RPC 2.0, MCP 2024-11-05)
+- Created detailed findings document
+
+**Verification:**
+- All 19 existing unit tests pass in tests/test_mcp_server.py
+- All 6 verification tests pass in verify_mcp_tools.py
+- Verification results saved to: verification/phase2-task2-mcp-tool-verification.txt
+- Detailed findings saved to: verification/phase2-task2-findings.md
+
+**Status:**
+- MCP server is correctly configured and functional
+- `fork-detect` tool is properly registered and exposed
+- Tool responds correctly to `tools/list` requests
+- Tool invocation via `tools/call` works correctly
+- Error handling is proper and follows MCP spec
+- All response formats match MCP specification
+- Task marked as passes=true in plan2.md
+
+**Findings:**
+- Server initialization: ✓ Working
+- Tool registration: ✓ fork-detect properly registered
+- Protocol compliance: ✓ JSON-RPC 2.0 + MCP 2024-11-05
+- Tool invocation: ✓ Returns proper response format
+- Error handling: ✓ Graceful handling of invalid requests
+- Minor documentation issue identified (how MCP tools are invoked) - will be addressed in Task 11
+
+**Next:**
+- Task 3: Verify background indexer watchdog integration
 
 **Blockers:**
 - None

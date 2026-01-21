@@ -92,7 +92,7 @@ This plan addresses gaps identified between the PRD specification and current im
       "Test tool invocation returns expected results",
       "Update README if tool names differ from /fork-detect"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",
