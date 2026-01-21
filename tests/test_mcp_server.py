@@ -62,10 +62,14 @@ class TestMCPServer:
         result = server.handle_tools_list({})
 
         assert "tools" in result
-        assert len(result["tools"]) == 1
-        assert result["tools"][0]["name"] == "fork-detect"
-        assert "description" in result["tools"][0]
-        assert "inputSchema" in result["tools"][0]
+        assert len(result["tools"]) == 2
+        tool_names = [t["name"] for t in result["tools"]]
+        assert "fork-detect" in tool_names
+        assert "get-session-preview" in tool_names
+        # Verify both tools have required properties
+        for tool in result["tools"]:
+            assert "description" in tool
+            assert "inputSchema" in tool
 
     def test_handle_tools_call(self) -> None:
         """Test tools/call request handling."""

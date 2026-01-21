@@ -90,8 +90,10 @@ class TestMCPClientIntegration:
         assert response is not None
         assert "result" in response
         assert "tools" in response["result"]
-        assert len(response["result"]["tools"]) == 1
-        assert response["result"]["tools"][0]["name"] == "fork-detect"
+        assert len(response["result"]["tools"]) == 2
+        tool_names = [t["name"] for t in response["result"]["tools"]]
+        assert "fork-detect" in tool_names
+        assert "get-session-preview" in tool_names
 
     def test_fork_detect_tool_invocation(self):
         """Test invoking fork-detect tool via MCP protocol."""

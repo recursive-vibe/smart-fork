@@ -101,7 +101,7 @@ class TestGetSessionPreview:
         mock_services['session_registry'].get_session.return_value = sample_metadata
 
         with patch('smart_fork.fork_generator.ForkGenerator') as MockForkGen, \
-             patch('smart_fork.search_service.SessionParser') as MockParser:
+             patch('smart_fork.session_parser.SessionParser') as MockParser:
             # Mock ForkGenerator
             mock_fork_gen = MockForkGen.return_value
             mock_fork_gen.find_session_path.return_value = "/fake/path/test-session-123.jsonl"
@@ -140,7 +140,7 @@ class TestGetSessionPreview:
         mock_services['session_registry'].get_session.return_value = sample_metadata
 
         with patch('smart_fork.fork_generator.ForkGenerator') as MockForkGen, \
-             patch('smart_fork.search_service.SessionParser') as MockParser:
+             patch('smart_fork.session_parser.SessionParser') as MockParser:
             mock_fork_gen = MockForkGen.return_value
             mock_fork_gen.find_session_path.return_value = "/fake/path/test-session-123.jsonl"
 
@@ -182,7 +182,7 @@ class TestGetSessionPreview:
         mock_services['session_registry'].get_session.return_value = sample_metadata
 
         with patch('smart_fork.fork_generator.ForkGenerator') as MockForkGen, \
-             patch('smart_fork.search_service.SessionParser') as MockParser:
+             patch('smart_fork.session_parser.SessionParser') as MockParser:
             mock_fork_gen = MockForkGen.return_value
             mock_fork_gen.find_session_path.return_value = "/fake/path/test-session-123.jsonl"
 
@@ -215,7 +215,7 @@ class TestGetSessionPreview:
         )
 
         with patch('smart_fork.fork_generator.ForkGenerator') as MockForkGen, \
-             patch('smart_fork.search_service.SessionParser') as MockParser:
+             patch('smart_fork.session_parser.SessionParser') as MockParser:
             mock_fork_gen = MockForkGen.return_value
             mock_fork_gen.find_session_path.return_value = "/fake/path/test-session-123.jsonl"
 
@@ -253,7 +253,7 @@ class TestGetSessionPreview:
         )
 
         with patch('smart_fork.fork_generator.ForkGenerator') as MockForkGen, \
-             patch('smart_fork.search_service.SessionParser') as MockParser:
+             patch('smart_fork.session_parser.SessionParser') as MockParser:
             mock_fork_gen = MockForkGen.return_value
             mock_fork_gen.find_session_path.return_value = "/fake/path/test-session-123.jsonl"
 
@@ -281,7 +281,7 @@ class TestGetSessionPreview:
         mock_services['session_registry'].get_session.return_value = sample_metadata
 
         with patch('smart_fork.fork_generator.ForkGenerator') as MockForkGen, \
-             patch('smart_fork.search_service.SessionParser') as MockParser:
+             patch('smart_fork.session_parser.SessionParser') as MockParser:
             mock_fork_gen = MockForkGen.return_value
             mock_fork_gen.find_session_path.return_value = "/fake/path/test-session-123.jsonl"
 
@@ -309,7 +309,7 @@ class TestGetSessionPreview:
         mock_services['session_registry'].get_session.return_value = sample_metadata
 
         with patch('smart_fork.fork_generator.ForkGenerator') as MockForkGen, \
-             patch('smart_fork.search_service.SessionParser') as MockParser:
+             patch('smart_fork.session_parser.SessionParser') as MockParser:
             mock_fork_gen = MockForkGen.return_value
             mock_fork_gen.find_session_path.return_value = "/fake/path/test-session-123.jsonl"
 
@@ -358,7 +358,7 @@ class TestMCPSessionPreviewHandler:
         assert "Messages: 5" in result
         assert "Date Range:" in result
         assert "This is a preview..." in result
-        mock_search.get_session_preview.assert_called_once_with("test-123", 500)
+        mock_search.get_session_preview.assert_called_once_with("test-123", 500, claude_dir=None)
 
     def test_session_preview_handler_no_session_id(self):
         """Test handler with missing session_id."""
@@ -437,5 +437,5 @@ class TestMCPSessionPreviewHandler:
         result = handler({"session_id": "test-123"})
 
         # Verify default length (500) was used
-        mock_search.get_session_preview.assert_called_once_with("test-123", 500)
+        mock_search.get_session_preview.assert_called_once_with("test-123", 500, claude_dir=None)
         assert "Session Preview: test-123" in result
