@@ -83,7 +83,7 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 
 ---
 
-### P3 Tasks (1/4 Complete)
+### P3 Tasks (2/4 Complete)
 
 **VS Code Extension Integration** ✅ 2026-01-21
 - Created vscode-extension/ directory with complete extension scaffold
@@ -114,10 +114,25 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 
 ---
 
-## Remaining (2/14)
+**Session Diff Tool** ✅ 2026-01-21
+- SessionDiffService compares two sessions semantically
+- Uses cosine similarity on embeddings to find matching messages
+- Extracts unique topics/technologies from each session
+- Returns structured diff (common, unique_to_1, unique_to_2, similarity_score)
+- MCP tool: compare-sessions (session_id_1, session_id_2, include_content)
+- Comparison algorithm: greedy matching with threshold filtering
+- Similarity score: 70% content similarity + 30% topic overlap
+- Features: minimum message length filtering, stop word removal, topic extraction
+- Configurable: similarity_threshold (default: 0.75), min_message_length (default: 20)
+- Tests: 18/18 unit tests passing
+- Integration tests: 1/6 passing (5 fail due to network/proxy issues downloading embedding model)
+- Backward compatible
+
+---
+
+## Remaining (1/14)
 
 ### P2 (0 remaining)
 
-### P3 (2 remaining)
-- Session diff tool
+### P3 (1 remaining)
 - Session archiving

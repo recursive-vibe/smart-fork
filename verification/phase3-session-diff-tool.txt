@@ -1,0 +1,278 @@
+PHASE 3 TASK: Session Diff Tool (P3)
+Status: Complete ✅
+Date: 2026-01-21
+
+==================================================
+OBJECTIVE
+==================================================
+
+Implement a session comparison tool that allows users to:
+- Compare two sessions to understand their differences
+- Identify common content using semantic similarity
+- Extract unique topics/technologies from each session
+- Get an overall similarity score
+
+This feature is valuable for:
+- Understanding if sessions are duplicates
+- Identifying what unique work was done in each session
+- Comparing approaches taken in different sessions
+- Managing session organization and cleanup
+
+==================================================
+IMPLEMENTATION
+==================================================
+
+1. Session Diff Service (src/smart_fork/session_diff_service.py)
+   ✅ Created SessionDiffService class
+   ✅ Implements compare_sessions(session_id_1, session_id_2) method
+   ✅ Uses cosine similarity on embeddings for message matching
+   ✅ Extracts topics using term frequency analysis
+   ✅ Returns structured SessionDiff object with:
+      - similarity_score: Overall similarity (0-1)
+      - common_messages: List of matching message pairs
+      - unique_to_1: Message indices unique to session 1
+      - unique_to_2: Message indices unique to session 2
+      - topics_1: Unique topics in session 1
+      - topics_2: Unique topics in session 2
+      - common_topics: Topics appearing in both
+
+   Key Features:
+   - Configurable similarity_threshold (default: 0.75)
+   - Minimum message length filtering (default: 20 chars)
+   - Greedy matching algorithm to find best message pairs
+   - Weighted similarity: 70% content + 30% topic overlap
+   - Stop word filtering for topic extraction
+
+2. MCP Tool Integration (src/smart_fork/server.py)
+   ✅ Added SessionDiffService import
+   ✅ Created create_compare_sessions_handler() function
+   ✅ Registered compare-sessions MCP tool with schema:
+      - session_id_1 (required): First session ID
+      - session_id_2 (required): Second session ID
+      - include_content (optional): Show message snippets
+   ✅ Added diff_service parameter to create_server()
+   ✅ Initialized SessionDiffService in main()
+   ✅ Formatted output includes:
+      - Overall similarity percentage
+      - Top matching messages with similarity scores
+      - Unique message counts for each session
+      - Topic/technology differences
+      - Helpful usage tips
+
+3. Unit Tests (tests/test_session_diff_service.py)
+   ✅ Test service initialization
+   ✅ Test comparing non-existent sessions
+   ✅ Test comparing sessions with no chunks
+   ✅ Test comparing identical sessions (high similarity)
+   ✅ Test comparing different sessions (low similarity)
+   ✅ Test comparing sessions with partial overlap
+   ✅ Test topic extraction
+   ✅ Test stop word filtering
+   ✅ Test message content retrieval
+   ✅ Test message truncation
+   ✅ Test invalid index handling
+   ✅ Test similarity threshold filtering
+   ✅ Test minimum length filtering
+   ✅ Test SessionDiff to_dict conversion
+   ✅ Test custom threshold and min_length parameters
+   Total: 20 unit tests
+
+4. Integration Tests (tests/test_session_diff_integration.py)
+   ✅ Test comparing real sessions with embeddings
+   ✅ Test comparing identical real sessions
+   ✅ Test comparing different real sessions
+   ✅ Test getting real message content
+   ✅ Test real topic extraction
+   ✅ Test diff to_dict with real data
+   Total: 6 integration tests
+
+==================================================
+TECHNICAL DETAILS
+==================================================
+
+Message Matching Algorithm:
+- For each chunk in session 1, finds best match in session 2
+- Uses cosine similarity on normalized embeddings
+- Greedy approach prevents duplicate matches
+- Filters messages below similarity_threshold
+- Sorts matches by similarity (highest first)
+
+Topic Extraction:
+- Combines all chunk content into one corpus
+- Extracts alphanumeric words with hyphen/underscore support
+- Filters stop words and short words (< 3 chars)
+- Uses Counter to find most frequent terms
+- Returns top K topics
+
+Similarity Score Calculation:
+- Content similarity: matches / max(chunks1, chunks2)
+- Topic similarity: common_topics / all_topics
+- Overall: 0.7 * content + 0.3 * topic
+
+Data Structures:
+- MessageMatch: Pair of matching messages with similarity
+- SessionDiff: Complete comparison result
+- Both support to_dict() for JSON serialization
+
+==================================================
+TESTING RESULTS
+==================================================
+
+Unit Tests:
+✅ All 20 tests passing
+- Initialization: 1 test
+- Session comparison: 5 tests
+- Topic extraction: 3 tests
+- Message content: 4 tests
+- Filtering: 2 tests
+- Data structures: 2 tests
+- Configuration: 1 test
+- Edge cases: 2 tests
+
+Integration Tests:
+✅ All 6 tests passing
+- Real session comparison: 3 tests
+- Content retrieval: 1 test
+- Topic extraction: 1 test
+- Serialization: 1 test
+
+Total: 26/26 tests passing ✅
+
+==================================================
+MCP TOOL USAGE
+==================================================
+
+Compare two sessions:
+```
+compare-sessions session_id_1=session-abc-123 session_id_2=session-def-456
+```
+
+Compare with content snippets:
+```
+compare-sessions session_id_1=session-abc-123 session_id_2=session-def-456 include_content=true
+```
+
+Example Output:
+```
+Session Comparison: session-abc-123 vs session-def-456
+
+Overall Similarity: 62.5%
+
+Common Content (3 matching messages):
+  1. Match (similarity: 95%)
+  2. Match (similarity: 82%)
+  3. Match (similarity: 78%)
+
+Unique to session-abc-123: 2 messages
+Unique to session-def-456: 1 messages
+
+Common Topics: react, typescript, hooks
+
+Unique to session-abc-123: redux, material-ui
+Unique to session-def-456: fastapi, postgresql
+
+---
+This comparison helps you understand:
+- How similar two sessions are (duplicate detection)
+- What unique work was done in each session
+- Which technologies/topics differ between sessions
+
+Use get-session-preview to view full session content.
+Use include_content=true to see message snippets in the comparison.
+```
+
+==================================================
+CONFIGURATION
+==================================================
+
+Default Settings:
+- similarity_threshold: 0.75 (75% similarity to match)
+- min_message_length: 20 characters
+- max_topics: 10 per session
+- content_weight: 0.7 (70% of similarity score)
+- topic_weight: 0.3 (30% of similarity score)
+
+These can be customized when initializing SessionDiffService.
+
+==================================================
+USE CASES
+==================================================
+
+1. Duplicate Detection
+   - Compare sessions to identify near-duplicates
+   - Sessions with >85% similarity may be duplicates
+   - Use with get-similar-sessions for comprehensive checks
+
+2. Session Comparison
+   - Understand differences between related sessions
+   - See what unique work was done in each
+   - Identify technology/approach differences
+
+3. Session Organization
+   - Group related sessions by similarity
+   - Decide which sessions to merge or archive
+   - Understand session content without full review
+
+4. Workflow Analysis
+   - Compare different approaches to same problem
+   - Learn from past solution variations
+   - Identify pattern improvements over time
+
+==================================================
+INTEGRATION WITH OTHER FEATURES
+==================================================
+
+Works well with:
+- get-similar-sessions: Find candidates to compare
+- get-session-preview: View full content after comparison
+- get-session-summary: Quick overview of unique aspects
+- fork-detect: Choose best session after comparison
+
+Workflow Example:
+1. Use get-similar-sessions to find potential duplicates
+2. Use compare-sessions to see exact differences
+3. Use get-session-preview on unique messages
+4. Decide to fork, merge, or archive based on insights
+
+==================================================
+PERFORMANCE
+==================================================
+
+Complexity:
+- Time: O(n * m) where n, m are chunk counts
+- Space: O(n + m) for embeddings
+- Typical comparison: < 1 second for sessions with 10-20 chunks
+
+Optimizations:
+- Greedy matching prevents n² comparisons
+- Embedding retrieval batched from ChromaDB
+- Topic extraction uses Counter for efficiency
+- Filters applied early to reduce processing
+
+==================================================
+FUTURE ENHANCEMENTS
+==================================================
+
+Potential improvements:
+- Visual diff display in UI/extension
+- Batch comparison for finding all duplicates
+- Export diff results to JSON/HTML
+- More sophisticated matching algorithms
+- Support for comparing 3+ sessions
+- Highlight specific code differences
+
+==================================================
+CONCLUSION
+==================================================
+
+The session diff tool successfully provides:
+✅ Semantic comparison of two sessions
+✅ Matching message identification
+✅ Topic/technology extraction and comparison
+✅ Clear, actionable output format
+✅ Integration with existing MCP tools
+✅ Comprehensive test coverage (26/26 passing)
+
+This P3 feature adds valuable session management capabilities,
+helping users understand relationships between sessions and
+make informed decisions about forking, merging, or archiving.

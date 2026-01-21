@@ -243,7 +243,7 @@ These features are valuable but require more significant implementation work.
       "Show conversation flow comparison",
       "Display technology/topic differences"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "organization",
