@@ -54,6 +54,9 @@ dmypy.json
 .AppleDouble
 .LSOverride
 
+# Cache directories
+.cache/
+
 # Logs
 *.log
 
