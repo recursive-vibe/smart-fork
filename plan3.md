@@ -71,7 +71,7 @@ These features provide significant user value with relatively straightforward im
       "Display last 10 forks on request",
       "Add option to re-fork from history"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ux",

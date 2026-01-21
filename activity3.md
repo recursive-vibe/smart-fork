@@ -41,3 +41,57 @@ This file tracks progress on Phase 3 feature development tasks.
 - ~100-300ms saved per cached query embedding
 - ~50-200ms saved per cached search result
 - Overall query latency reduction: 50%+ for repeated queries
+
+---
+
+### 2026-01-21: Fork History Tracking (P1)
+
+**Task:** Add fork history tracking to enable users to return to recently forked sessions.
+
+**Status:** ✅ Complete (already implemented)
+
+**Changes:**
+- Verified complete implementation of ForkHistoryService with thread-safe storage
+- Confirmed MCP tool integration: record-fork and get-fork-history tools
+- Verified storage at ~/.smart-fork/fork_history.json
+- Confirmed LRU-style pruning (max 100 entries)
+- Verified position tracking for preference learning
+
+**Implementation Details:**
+1. ForkHistoryEntry dataclass with session_id, timestamp, query, position fields
+2. Thread-safe ForkHistoryService class with threading.Lock for concurrent access
+3. JSON persistence with atomic write patterns
+4. LRU-style management: newest entries kept, oldest pruned when exceeding max_entries
+5. Statistics API: total_forks, unique_sessions, position_distribution
+6. MCP tools: record-fork (for tracking), get-fork-history (for retrieval)
+
+**Test Coverage:**
+- tests/test_fork_history_service.py: Unit tests for service (18 tests)
+- tests/test_fork_history_integration.py: Integration tests with MCP (10 tests)
+- Coverage includes: thread safety, persistence, statistics, error handling
+
+**Verification:**
+- Created verification/phase3-fork-history-tracking.txt documenting all components
+- Reviewed src/smart_fork/fork_history_service.py (196 lines)
+- Confirmed server.py integration (lines 488-495, 522-529, 667-708, 724-726)
+
+**Features Implemented:**
+✅ Create fork_history.json storage
+✅ Record session_id, timestamp, query on each fork
+✅ Add get-fork-history MCP tool
+✅ Display last 10 forks on request (configurable limit)
+✅ Add option to re-fork from history (via session_id in results)
+✅ Position tracking for future preference learning
+
+**User Experience:**
+- Users can call get-fork-history to see recent forks
+- Output includes session_id, query, timestamp, position
+- Includes usage hints for get-session-preview tool
+- Supports limiting results (default: 10)
+
+**Architecture Highlights:**
+- Thread-safe design for concurrent access
+- File-based persistence (simple, reliable)
+- Most-recent-first ordering
+- Statistics for monitoring and debugging
+- Graceful degradation if service unavailable
