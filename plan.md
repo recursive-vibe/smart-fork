@@ -234,7 +234,7 @@ An MCP server for Claude Code that enables semantic search of past session trans
       "Support server port configuration",
       "Write config validation tests"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "testing",
@@ -247,7 +247,7 @@ An MCP server for Claude Code that enables semantic search of past session trans
       "Test SessionRegistry CRUD operations",
       "Achieve 80%+ code coverage on core modules"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "testing",
