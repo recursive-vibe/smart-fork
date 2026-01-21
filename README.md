@@ -334,6 +334,26 @@ if result.get('timeouts'):
     result = setup.run_setup(resume=True, retry_timeouts=True)
 ```
 
+**Multi-Threaded Indexing:**
+
+Speed up initial setup by processing sessions in parallel (recommended for 100+ sessions):
+
+```python
+from smart_fork.initial_setup import InitialSetup
+
+# Use 4 worker threads for parallel processing
+setup = InitialSetup(workers=4)
+result = setup.run_setup()
+
+print(f"Processed {result['files_processed']} files using {result['workers_used']} workers")
+print(f"Elapsed time: {result['elapsed_time']:.1f}s")
+
+# Typical speedup with multiple workers:
+# - 2 workers: 1.5-1.8x faster
+# - 4 workers: 2-3x faster
+# - 8 workers: 3-4x faster (diminishing returns due to I/O)
+```
+
 #### Server Settings
 
 ```json

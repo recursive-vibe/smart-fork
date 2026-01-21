@@ -10,6 +10,7 @@ import time
 import json
 import logging
 import signal
+import threading
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable
 from dataclasses import dataclass, asdict
@@ -166,7 +167,8 @@ class InitialSetup:
         claude_dir: str = "~/.claude",
         progress_callback: Optional[Callable[[SetupProgress], None]] = None,
         show_progress: bool = True,
-        timeout_per_session: float = 30.0
+        timeout_per_session: float = 30.0,
+        workers: int = 1
     ):
         """
         Initialize the setup manager.
@@ -177,10 +179,12 @@ class InitialSetup:
             progress_callback: Optional callback for progress updates
             show_progress: Whether to show default console progress (default: True)
             timeout_per_session: Timeout in seconds for processing each session (default: 30.0)
+            workers: Number of worker threads for parallel processing (default: 1)
         """
         self.storage_dir = Path(storage_dir).expanduser()
         self.claude_dir = Path(claude_dir).expanduser()
         self.timeout_per_session = timeout_per_session
+        self.workers = max(1, workers)  # Ensure at least 1 worker
 
         # Use default progress callback if none provided and show_progress is True
         if progress_callback is None and show_progress:
@@ -198,6 +202,8 @@ class InitialSetup:
         self.session_registry: Optional[SessionRegistry] = None
 
         self._interrupted = False
+        self._progress_lock = threading.Lock()  # Lock for thread-safe progress updates
+        self._state_lock = threading.Lock()  # Lock for thread-safe state updates
 
     def is_first_run(self) -> bool:
         """
@@ -294,7 +300,9 @@ class InitialSetup:
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize services (with caching enabled by default)
-        self.embedding_service = EmbeddingService(use_cache=True)
+        # Use cache directory within storage_dir for isolation
+        cache_dir = str(self.storage_dir / "embedding_cache")
+        self.embedding_service = EmbeddingService(use_cache=True, cache_dir=cache_dir)
         self.vector_db_service = VectorDBService(
             persist_directory=str(self.storage_dir / "vector_db")
         )
@@ -551,6 +559,177 @@ class InitialSetup:
         self._interrupted = True
         logger.info("Setup interrupted by user")
 
+    def _process_files_sequential(
+        self,
+        files_to_process: List[Path],
+        all_files: List[Path],
+        state: SetupState,
+        start_time: float
+    ) -> Dict[str, Any]:
+        """
+        Process files sequentially (single-threaded).
+
+        Args:
+            files_to_process: List of files to process
+            all_files: All session files (for progress tracking)
+            state: Setup state object
+            start_time: Start time of setup
+
+        Returns:
+            Dictionary with processing results
+        """
+        total_chunks = 0
+        errors = []
+        timeouts = []
+
+        for file_path in files_to_process:
+            # Check for interruption
+            if self._interrupted:
+                logger.info("Setup interrupted, saving state...")
+                self._save_state(state)
+                return {
+                    'total_chunks': total_chunks,
+                    'errors': errors,
+                    'timeouts': timeouts,
+                    'interrupted': True
+                }
+
+            # Notify progress
+            self._notify_progress(
+                total=len(all_files),
+                processed=len(state.processed_files),
+                current_file=file_path.name,
+                total_chunks=total_chunks,
+                start_time=start_time
+            )
+
+            # Process file with timeout
+            result = self._process_session_file_with_timeout(file_path)
+
+            # Update state and statistics
+            file_str = str(file_path)
+            if result['success']:
+                total_chunks += result['chunks']
+                state.processed_files.append(file_str)
+            elif result.get('timed_out', False):
+                state.timed_out_files.append(file_str)
+                state.processed_files.append(file_str)
+                timeouts.append({
+                    'file': file_path.name,
+                    'error': result.get('error', 'Unknown timeout'),
+                    'file_size': _format_bytes(file_path.stat().st_size)
+                })
+            else:
+                errors.append({
+                    'file': file_path.name,
+                    'error': result.get('error', 'Unknown error')
+                })
+
+            # Update state
+            state.last_updated = time.time()
+            self._save_state(state)
+
+        return {
+            'total_chunks': total_chunks,
+            'errors': errors,
+            'timeouts': timeouts,
+            'interrupted': False
+        }
+
+    def _process_files_parallel(
+        self,
+        files_to_process: List[Path],
+        all_files: List[Path],
+        state: SetupState,
+        start_time: float
+    ) -> Dict[str, Any]:
+        """
+        Process files in parallel using thread pool.
+
+        Args:
+            files_to_process: List of files to process
+            all_files: All session files (for progress tracking)
+            state: Setup state object
+            start_time: Start time of setup
+
+        Returns:
+            Dictionary with processing results
+        """
+        total_chunks = 0
+        errors = []
+        timeouts = []
+
+        # Process files using thread pool
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            # Submit all tasks
+            future_to_file = {
+                executor.submit(self._process_session_file_with_timeout, file_path): file_path
+                for file_path in files_to_process
+            }
+
+            # Process results as they complete
+            from concurrent.futures import as_completed
+            for future in as_completed(future_to_file):
+                # Check for interruption
+                if self._interrupted:
+                    logger.info("Setup interrupted, cancelling remaining tasks...")
+                    # Cancel pending futures
+                    for f in future_to_file:
+                        f.cancel()
+                    # Save state
+                    with self._state_lock:
+                        self._save_state(state)
+                    return {
+                        'total_chunks': total_chunks,
+                        'errors': errors,
+                        'timeouts': timeouts,
+                        'interrupted': True
+                    }
+
+                file_path = future_to_file[future]
+                result = future.result()
+
+                # Update state and statistics with thread safety
+                with self._state_lock:
+                    file_str = str(file_path)
+                    if result['success']:
+                        total_chunks += result['chunks']
+                        state.processed_files.append(file_str)
+                    elif result.get('timed_out', False):
+                        state.timed_out_files.append(file_str)
+                        state.processed_files.append(file_str)
+                        timeouts.append({
+                            'file': file_path.name,
+                            'error': result.get('error', 'Unknown timeout'),
+                            'file_size': _format_bytes(file_path.stat().st_size)
+                        })
+                    else:
+                        errors.append({
+                            'file': file_path.name,
+                            'error': result.get('error', 'Unknown error')
+                        })
+
+                    # Update state periodically
+                    state.last_updated = time.time()
+                    self._save_state(state)
+
+                # Notify progress (with lock for thread safety)
+                with self._progress_lock:
+                    self._notify_progress(
+                        total=len(all_files),
+                        processed=len(state.processed_files),
+                        current_file=file_path.name,
+                        total_chunks=total_chunks,
+                        start_time=start_time
+                    )
+
+        return {
+            'total_chunks': total_chunks,
+            'errors': errors,
+            'timeouts': timeouts,
+            'interrupted': False
+        }
+
     def run_setup(self, resume: bool = False, retry_timeouts: bool = False) -> Dict[str, Any]:
         """
         Run the initial setup process.
@@ -605,66 +784,46 @@ class InitialSetup:
         # Initialize services
         self._initialize_services()
 
-        # Process files
+        # Get files to process (skip already processed)
+        files_to_process = [
+            file_path for file_path in all_files
+            if str(file_path) not in state.processed_files
+        ]
+
+        logger.info(f"Processing {len(files_to_process)} sessions with {self.workers} worker(s)...")
+
+        # Process files with thread pool
         start_time = state.started_at
         total_chunks = 0
         errors = []
         timeouts = []
 
-        for file_path in all_files:
-            # Check if already processed
-            file_str = str(file_path)
-            if file_str in state.processed_files:
-                continue
-
-            # Check for interruption
-            if self._interrupted:
-                logger.info("Setup interrupted, saving state...")
-                self._save_state(state)
-                return {
-                    'success': False,
-                    'files_processed': len(state.processed_files),
-                    'total_chunks': total_chunks,
-                    'errors': errors,
-                    'timeouts': timeouts,
-                    'interrupted': True,
-                    'message': 'Setup interrupted, can be resumed later'
-                }
-
-            # Notify progress
-            self._notify_progress(
-                total=len(all_files),
-                processed=len(state.processed_files),
-                current_file=file_path.name,
-                total_chunks=total_chunks,
-                start_time=start_time
+        # Use single-threaded processing if workers=1 (backward compatible)
+        if self.workers == 1:
+            result = self._process_files_sequential(
+                files_to_process, all_files, state, start_time
+            )
+        else:
+            result = self._process_files_parallel(
+                files_to_process, all_files, state, start_time
             )
 
-            # Process file with timeout
-            result = self._process_session_file_with_timeout(file_path)
+        # Unpack results
+        total_chunks = result['total_chunks']
+        errors = result['errors']
+        timeouts = result['timeouts']
+        interrupted = result.get('interrupted', False)
 
-            if result['success']:
-                total_chunks += result['chunks']
-                state.processed_files.append(file_str)
-            elif result.get('timed_out', False):
-                # Track timed-out files separately
-                state.timed_out_files.append(file_str)
-                state.processed_files.append(file_str)  # Mark as processed to skip in this run
-                timeouts.append({
-                    'file': file_path.name,
-                    'error': result.get('error', 'Unknown timeout'),
-                    'file_size': _format_bytes(file_path.stat().st_size)
-                })
-            else:
-                # Regular error
-                errors.append({
-                    'file': file_path.name,
-                    'error': result.get('error', 'Unknown error')
-                })
-
-            # Update state
-            state.last_updated = time.time()
-            self._save_state(state)
+        if interrupted:
+            return {
+                'success': False,
+                'files_processed': len(state.processed_files),
+                'total_chunks': total_chunks,
+                'errors': errors,
+                'timeouts': timeouts,
+                'interrupted': True,
+                'message': 'Setup interrupted, can be resumed later'
+            }
 
         # Setup complete - flush embedding cache to disk
         if self.embedding_service:
@@ -672,6 +831,11 @@ class InitialSetup:
             logger.info("Flushed embedding cache to disk")
 
         self._delete_state()
+
+        # Get cache statistics
+        cache_stats = {}
+        if self.embedding_service:
+            cache_stats = self.embedding_service.get_cache_stats()
 
         # Final progress notification
         self._notify_progress(
@@ -684,11 +848,6 @@ class InitialSetup:
             cache_stats=cache_stats
         )
 
-        # Get cache statistics
-        cache_stats = {}
-        if self.embedding_service:
-            cache_stats = self.embedding_service.get_cache_stats()
-
         result = {
             'success': True,
             'files_processed': len(state.processed_files) - len(timeouts),
@@ -696,7 +855,8 @@ class InitialSetup:
             'errors': errors,
             'timeouts': timeouts,
             'elapsed_time': time.time() - start_time,
-            'cache_stats': cache_stats
+            'cache_stats': cache_stats,
+            'workers_used': self.workers
         }
 
         # Add helpful message about timeouts if any occurred

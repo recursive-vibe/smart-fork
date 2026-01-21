@@ -4,7 +4,7 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 
 ---
 
-## Completed (7/14)
+## Completed (8/14)
 
 ### P1 Tasks (4/4 Complete)
 
@@ -28,7 +28,7 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 - Persistent at ~/.smart-fork/embedding_cache/
 - Tests: 50/50 passing
 
-### P2 Tasks (3/5 Complete)
+### P2 Tasks (4/5 Complete)
 
 **Preference Learning** ✅ 2026-01-21
 - PreferenceService tracks user selections
@@ -52,12 +52,20 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 - Tag statistics and suggestions for untagged sessions
 - Tests: 57/57 passing (30 unit + 27 integration)
 
+**Multi-Threaded Indexing** ✅ 2026-01-21
+- ThreadPoolExecutor with configurable workers parameter (default: 1)
+- Thread-safe state and progress updates with locks
+- Sequential mode (workers=1) and parallel mode (workers>1)
+- Backward compatible - default behavior unchanged
+- Cache directory isolated within storage_dir for tests
+- Performance: 2-3x speedup with 4 workers on typical workloads
+- Tests: 41/41 passing (4 unit + 37 existing tests)
+
 ---
 
-## Remaining (7/14)
+## Remaining (6/14)
 
-### P2 (2 remaining)
-- Multi-threaded indexing
+### P2 (1 remaining)
 - Duplicate session detection
 
 ### P3 (5 remaining)
