@@ -36,22 +36,30 @@ First read activity3.md to see what was recently accomplished in Phase 3.
 Open plan3.md and choose the single highest priority task where passes is false.
 Priority order: P1 first, then P2, then P3.
 
-<!-- Step 3: Implement (one task only to keep iterations focused) -->
-Work on exactly ONE task: implement the change.
+<!-- Step 3: Search for relevant past work (Smart Fork) -->
+Before implementing, use the fork-detect tool to search for relevant past sessions.
+Search with keywords from the task description (e.g., "caching", "embedding", "performance").
+If relevant sessions are found:
+- Use get-session-preview to review promising matches
+- Note any useful patterns, implementations, or lessons learned
+- Apply relevant context to the current task
 
-<!-- Step 4: Verify the implementation -->
+<!-- Step 4: Implement (one task only to keep iterations focused) -->
+Work on exactly ONE task: implement the change, informed by any relevant past work.
+
+<!-- Step 5: Verify the implementation -->
 After implementing, verify by:
 1. Run pytest on relevant tests if applicable
 2. Add new tests for new functionality
 3. Run manual verification if needed
 4. Save verification output to verification/phase3-[task-name].txt
 
-<!-- Step 5: Update tracking files -->
+<!-- Step 6: Update tracking files -->
 Append a dated progress entry to activity3.md describing what you changed and verification results.
 
 Update that task's passes in plan3.md from false to true.
 
-<!-- Step 6: Commit (no push - user will review and push manually) -->
+<!-- Step 7: Commit (no push - user will review and push manually) -->
 Make one git commit for that task only with a clear message.
 Prefix commit message with "Phase 3:" to distinguish from earlier phases.
 
