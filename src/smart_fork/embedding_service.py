@@ -2,10 +2,12 @@
 
 import gc
 import logging
-from typing import List, Union
+from typing import List, Union, Optional
 
 import psutil
 from sentence_transformers import SentenceTransformer
+
+from .embedding_cache import EmbeddingCache
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,8 @@ class EmbeddingService:
         min_batch_size: int = 8,
         max_batch_size: int = 128,
         memory_threshold_mb: int = 500,
+        use_cache: bool = True,
+        cache_dir: Optional[str] = None,
     ):
         """Initialize the embedding service.
 
@@ -34,6 +38,8 @@ class EmbeddingService:
             min_batch_size: Minimum batch size for processing
             max_batch_size: Maximum batch size for processing
             memory_threshold_mb: Memory threshold in MB for adaptive batching
+            use_cache: Whether to use embedding cache (default: True)
+            cache_dir: Optional cache directory (defaults to ~/.smart-fork/embedding_cache)
         """
         self.model_name = model_name
         self.min_batch_size = min_batch_size
@@ -42,7 +48,16 @@ class EmbeddingService:
         self.model = None
         self.embedding_dimension = 768  # nomic-embed-text-v1.5 dimension
 
-        logger.info(f"Initializing EmbeddingService with model: {model_name}")
+        # Initialize embedding cache
+        self.use_cache = use_cache
+        self.cache: Optional[EmbeddingCache] = None
+        if use_cache:
+            self.cache = EmbeddingCache(cache_dir=cache_dir)
+
+        logger.info(
+            f"Initializing EmbeddingService with model: {model_name} "
+            f"(cache={'enabled' if use_cache else 'disabled'})"
+        )
 
     def load_model(self) -> None:
         """Load the embedding model into memory."""
@@ -116,17 +131,42 @@ class EmbeddingService:
         if not texts:
             return []
 
+        # Try cache lookup if enabled
+        if self.use_cache and self.cache is not None:
+            cached_embeddings, miss_indices = self.cache.get_batch(texts)
+
+            # If all embeddings are cached, return immediately
+            if not miss_indices:
+                logger.info(f"All {len(texts)} embeddings retrieved from cache (100% hit rate)")
+                return [emb for emb in cached_embeddings if emb is not None]
+
+            # Log cache performance
+            hit_count = len(texts) - len(miss_indices)
+            hit_rate = (hit_count / len(texts)) * 100
+            logger.info(
+                f"Cache: {hit_count}/{len(texts)} hits ({hit_rate:.1f}%), "
+                f"computing {len(miss_indices)} new embeddings"
+            )
+
+            # Only compute embeddings for cache misses
+            texts_to_compute = [texts[i] for i in miss_indices]
+        else:
+            # No cache, compute all embeddings
+            texts_to_compute = texts
+            miss_indices = list(range(len(texts)))
+            cached_embeddings = [None] * len(texts)
+
         # Determine batch size
         if batch_size is None:
             batch_size = self.calculate_batch_size()
 
-        logger.info(f"Generating embeddings for {len(texts)} texts with batch size {batch_size}")
+        logger.info(f"Generating embeddings for {len(texts_to_compute)} texts with batch size {batch_size}")
 
-        embeddings = []
-        total_batches = (len(texts) + batch_size - 1) // batch_size
+        new_embeddings = []
+        total_batches = (len(texts_to_compute) + batch_size - 1) // batch_size
 
-        for batch_idx in range(0, len(texts), batch_size):
-            batch_texts = texts[batch_idx:batch_idx + batch_size]
+        for batch_idx in range(0, len(texts_to_compute), batch_size):
+            batch_texts = texts_to_compute[batch_idx:batch_idx + batch_size]
             current_batch_num = (batch_idx // batch_size) + 1
 
             logger.debug(f"Processing batch {current_batch_num}/{total_batches} ({len(batch_texts)} texts)")
@@ -140,7 +180,7 @@ class EmbeddingService:
             )
 
             # Convert numpy arrays to lists
-            embeddings.extend([embedding.tolist() for embedding in batch_embeddings])
+            new_embeddings.extend([embedding.tolist() for embedding in batch_embeddings])
 
             # Memory management: garbage collect after each batch
             if current_batch_num < total_batches:
@@ -150,8 +190,25 @@ class EmbeddingService:
                 available_mb = self.get_available_memory_mb()
                 logger.debug(f"Available memory after batch {current_batch_num}: {available_mb:.1f} MB")
 
-        logger.info(f"Generated {len(embeddings)} embeddings successfully")
-        return embeddings
+        # Store new embeddings in cache
+        if self.use_cache and self.cache is not None:
+            self.cache.put_batch(texts_to_compute, new_embeddings)
+            logger.debug(f"Cached {len(new_embeddings)} new embeddings")
+
+        # Merge cached and newly computed embeddings
+        final_embeddings = []
+        new_embedding_iter = iter(new_embeddings)
+
+        for i in range(len(texts)):
+            if cached_embeddings[i] is not None:
+                # Use cached embedding
+                final_embeddings.append(cached_embeddings[i])
+            else:
+                # Use newly computed embedding
+                final_embeddings.append(next(new_embedding_iter))
+
+        logger.info(f"Generated {len(final_embeddings)} embeddings successfully")
+        return final_embeddings
 
     def embed_single(self, text: str) -> List[float]:
         """Generate embedding for a single text.
@@ -180,3 +237,18 @@ class EmbeddingService:
             self.model = None
             gc.collect()
             logger.info("Model unloaded successfully")
+
+    def flush_cache(self) -> None:
+        """Flush embedding cache to disk."""
+        if self.cache is not None:
+            self.cache.flush()
+
+    def get_cache_stats(self) -> dict:
+        """Get embedding cache statistics.
+
+        Returns:
+            Dictionary with cache statistics, or empty dict if cache disabled
+        """
+        if self.cache is not None:
+            return self.cache.get_stats().to_dict()
+        return {}

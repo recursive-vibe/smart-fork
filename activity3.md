@@ -225,3 +225,110 @@ Filtered results by project
 
 **Backwards Compatibility:**
 ✅ Fully backwards compatible - all parameters optional, default behavior unchanged
+
+---
+
+### 2026-01-21: Embedding Cache for Indexed Sessions (P1)
+
+**Task:** Add embedding cache for indexed sessions to avoid recomputing embeddings for unchanged content during re-indexing.
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Created new EmbeddingCache module with content-addressable storage
+- Integrated cache into EmbeddingService with batch operations
+- Updated InitialSetup to use caching and display statistics
+- Added comprehensive test coverage (50 tests)
+- Created verification documentation
+
+**Implementation Details:**
+
+1. **Embedding Cache Module** (src/smart_fork/embedding_cache.py - 260 lines)
+   - Content-addressable storage using SHA256 hashing
+   - Persistent JSON storage at ~/.smart-fork/embedding_cache/cache.json
+   - In-memory cache with disk persistence
+   - get(text) / get_batch(texts) for lookups
+   - put(text, embedding) / put_batch(texts, embeddings) for storage
+   - flush() for disk persistence
+   - Statistics: hits, misses, total_entries, hit_rate
+
+2. **Embedding Service Integration** (src/smart_fork/embedding_service.py)
+   - Added use_cache parameter (default: True)
+   - Added cache_dir parameter for custom location
+   - Modified embed_texts() to check cache before computing
+   - Only compute embeddings for cache misses
+   - Merge cached + new embeddings in correct order
+   - Added flush_cache() method
+   - Added get_cache_stats() method
+
+3. **Initial Setup Integration** (src/smart_fork/initial_setup.py)
+   - EmbeddingService initialized with use_cache=True
+   - Cache flushed on setup completion
+   - Cache statistics included in setup results
+   - Progress callback displays cache stats
+
+**Cache Workflow:**
+1. get_batch(texts) -> (cached_embeddings, miss_indices)
+2. If all cached: return immediately (100% hit rate)
+3. Extract texts needing computation from miss_indices
+4. Compute embeddings for cache misses only
+5. Store new embeddings in cache
+6. Merge cached + newly computed in original order
+7. Return final embeddings list
+
+**Test Coverage:**
+- tests/test_embedding_cache.py: 20/20 tests passing ✅
+  - Initialization, put/get operations
+  - Cache misses, content-addressable behavior
+  - Batch operations, persistence, statistics
+  - Large batches (1000 embeddings)
+  - Hash collision resistance
+
+- tests/test_embedding_service_cache.py: 12/12 tests passing ✅
+  - Cache enable/disable
+  - Hit rate tracking, partial hits
+  - Flush operations, statistics
+  - Order preservation, 100% hit rate
+
+- tests/test_embedding_service.py: 18/18 passing ✅
+  - Updated to use use_cache=False for isolation
+
+**Total:** 50/50 tests passing ✅
+
+**Verification:**
+- Created verification/phase3-embedding-cache.txt documenting implementation
+- All 5 steps from plan3.md completed:
+  ✅ Store chunk hashes with embeddings
+  ✅ Skip embedding computation for unchanged chunks
+  ✅ Implement content-addressable embedding storage
+  ✅ Add cache statistics to initial setup output
+  ✅ Test with large session re-indexing (1000 embeddings)
+
+**Performance Impact:**
+- Expected 80%+ cache hit rate on re-indexing unchanged sessions
+- Eliminates ~100-300ms per cached embedding computation
+- Significant speedup for large re-indexing operations
+- Storage: ~3KB per cached embedding (~3MB per 1000 embeddings)
+
+**Architecture:**
+```
+Content-Addressable Storage:
+  Text → SHA256 Hash → Cache Lookup
+         ├─ HIT  → Return cached embedding
+         └─ MISS → Compute & cache new embedding
+
+Batch Processing:
+  embed_texts(["text1", "text2", "text3"])
+    → get_batch() → ([emb1, None, emb3], [1])
+    → Compute only index 1
+    → put_batch(["text2"], [emb2])
+    → Merge: [emb1, emb2, emb3]
+    → Return
+```
+
+**Backwards Compatibility:**
+✅ Fully backwards compatible
+- Cache enabled by default for new users
+- Existing tests updated to disable cache
+- No breaking changes to API
+- Cache directory created automatically

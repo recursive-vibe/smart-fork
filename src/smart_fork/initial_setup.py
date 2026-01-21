@@ -73,6 +73,7 @@ def default_progress_callback(progress: 'SetupProgress') -> None:
     - Percentage complete
     - Elapsed time
     - Estimated time remaining
+    - Cache statistics (on completion)
 
     Args:
         progress: Progress information
@@ -83,6 +84,14 @@ def default_progress_callback(progress: 'SetupProgress') -> None:
         print(f"  Processed: {progress.processed_files} files")
         print(f"  Total chunks: {progress.total_chunks}")
         print(f"  Time elapsed: {_format_time(progress.elapsed_time)}")
+
+        # Display cache statistics if available
+        if progress.cache_stats:
+            print(f"\n  Embedding cache statistics:")
+            print(f"    Total entries: {progress.cache_stats.get('total_entries', 0)}")
+            print(f"    Cache hits: {progress.cache_stats.get('hits', 0)}")
+            print(f"    Cache misses: {progress.cache_stats.get('misses', 0)}")
+            print(f"    Hit rate: {progress.cache_stats.get('hit_rate', '0.00%')}")
     elif progress.error:
         # Error message
         print(f"\n✗ Error: {progress.error}")
@@ -114,6 +123,7 @@ class SetupProgress:
     estimated_remaining: float
     is_complete: bool = False
     error: Optional[str] = None
+    cache_stats: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -283,8 +293,8 @@ class InitialSetup:
         # Create storage directory
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize services
-        self.embedding_service = EmbeddingService()
+        # Initialize services (with caching enabled by default)
+        self.embedding_service = EmbeddingService(use_cache=True)
         self.vector_db_service = VectorDBService(
             persist_directory=str(self.storage_dir / "vector_db")
         )
@@ -500,7 +510,8 @@ class InitialSetup:
         total_chunks: int,
         start_time: float,
         is_complete: bool = False,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        cache_stats: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Notify progress callback.
@@ -513,6 +524,7 @@ class InitialSetup:
             start_time: Start time of setup
             is_complete: Whether setup is complete
             error: Optional error message
+            cache_stats: Optional cache statistics (on completion)
         """
         if self.progress_callback is None:
             return
@@ -528,7 +540,8 @@ class InitialSetup:
             elapsed_time=elapsed,
             estimated_remaining=estimated_remaining,
             is_complete=is_complete,
-            error=error
+            error=error,
+            cache_stats=cache_stats
         )
 
         self.progress_callback(progress)
@@ -653,7 +666,11 @@ class InitialSetup:
             state.last_updated = time.time()
             self._save_state(state)
 
-        # Setup complete
+        # Setup complete - flush embedding cache to disk
+        if self.embedding_service:
+            self.embedding_service.flush_cache()
+            logger.info("Flushed embedding cache to disk")
+
         self._delete_state()
 
         # Final progress notification
@@ -663,8 +680,14 @@ class InitialSetup:
             current_file="",
             total_chunks=total_chunks,
             start_time=start_time,
-            is_complete=True
+            is_complete=True,
+            cache_stats=cache_stats
         )
+
+        # Get cache statistics
+        cache_stats = {}
+        if self.embedding_service:
+            cache_stats = self.embedding_service.get_cache_stats()
 
         result = {
             'success': True,
@@ -672,7 +695,8 @@ class InitialSetup:
             'total_chunks': total_chunks,
             'errors': errors,
             'timeouts': timeouts,
-            'elapsed_time': time.time() - start_time
+            'elapsed_time': time.time() - start_time,
+            'cache_stats': cache_stats
         }
 
         # Add helpful message about timeouts if any occurred

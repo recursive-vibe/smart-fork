@@ -99,7 +99,7 @@ These features provide significant user value with relatively straightforward im
       "Add cache statistics to initial setup output",
       "Test with large session re-indexing"
     ],
-    "passes": false
+    "passes": true
   }
 ]
 ```

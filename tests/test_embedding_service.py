@@ -14,13 +14,14 @@ class TestEmbeddingService:
 
     def test_init_default_params(self):
         """Test initialization with default parameters."""
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         assert service.model_name == "nomic-ai/nomic-embed-text-v1.5"
         assert service.min_batch_size == 8
         assert service.max_batch_size == 128
         assert service.memory_threshold_mb == 500
         assert service.embedding_dimension == 768
         assert service.model is None
+        assert service.use_cache is False
 
     def test_init_custom_params(self):
         """Test initialization with custom parameters."""
@@ -29,6 +30,7 @@ class TestEmbeddingService:
             min_batch_size=4,
             max_batch_size=64,
             memory_threshold_mb=1000,
+            use_cache=False,
         )
         assert service.model_name == "custom/model"
         assert service.min_batch_size == 4
@@ -41,7 +43,7 @@ class TestEmbeddingService:
         # Mock 4GB available
         mock_memory.return_value = MagicMock(available=4 * 1024 * 1024 * 1024)
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         available = service.get_available_memory_mb()
 
         assert available == 4096.0
@@ -52,7 +54,7 @@ class TestEmbeddingService:
         # Mock 2GB available (more than 2x threshold of 500MB)
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         batch_size = service.calculate_batch_size()
 
         assert batch_size == service.max_batch_size
@@ -63,7 +65,7 @@ class TestEmbeddingService:
         # Mock 300MB available (less than threshold of 500MB)
         mock_memory.return_value = MagicMock(available=300 * 1024 * 1024)
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         batch_size = service.calculate_batch_size()
 
         assert batch_size == service.min_batch_size
@@ -74,7 +76,7 @@ class TestEmbeddingService:
         # Mock 750MB available (1.5x threshold)
         mock_memory.return_value = MagicMock(available=750 * 1024 * 1024)
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         batch_size = service.calculate_batch_size()
 
         # Should be between min and max
@@ -86,7 +88,7 @@ class TestEmbeddingService:
         mock_model = MagicMock()
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         service.load_model()
 
         assert service.model == mock_model
@@ -101,7 +103,7 @@ class TestEmbeddingService:
         mock_model = MagicMock()
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         service.load_model()
         service.load_model()  # Second call
 
@@ -113,7 +115,7 @@ class TestEmbeddingService:
         """Test model loading error handling."""
         mock_transformer.side_effect = Exception("Model not found")
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         with pytest.raises(Exception, match="Model not found"):
             service.load_model()
 
@@ -127,7 +129,7 @@ class TestEmbeddingService:
         mock_model.encode.return_value = np.array([[0.1] * 768])
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         embeddings = service.embed_texts("test text")
 
         assert len(embeddings) == 1
@@ -144,7 +146,7 @@ class TestEmbeddingService:
         mock_model.encode.return_value = np.array([[0.1] * 768, [0.2] * 768, [0.3] * 768])
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         texts = ["text 1", "text 2", "text 3"]
         embeddings = service.embed_texts(texts)
 
@@ -159,7 +161,7 @@ class TestEmbeddingService:
         mock_model = MagicMock()
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         embeddings = service.embed_texts([])
 
         assert embeddings == []
@@ -181,7 +183,7 @@ class TestEmbeddingService:
         mock_model.encode.side_effect = encode_side_effect
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         # Create 20 texts with batch size of 8
         texts = [f"text {i}" for i in range(20)]
         embeddings = service.embed_texts(texts, batch_size=8)
@@ -202,7 +204,7 @@ class TestEmbeddingService:
         mock_model.encode.return_value = np.array([[0.1] * 768 for _ in range(5)])
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         texts = [f"text {i}" for i in range(5)]
         embeddings = service.embed_texts(texts, batch_size=5)
 
@@ -220,7 +222,7 @@ class TestEmbeddingService:
         mock_model.encode.return_value = np.array([[0.5] * 768])
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         embedding = service.embed_single("test text")
 
         assert len(embedding) == 768
@@ -228,7 +230,7 @@ class TestEmbeddingService:
 
     def test_get_embedding_dimension(self):
         """Test getting embedding dimension."""
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         assert service.get_embedding_dimension() == 768
 
     @patch("smart_fork.embedding_service.SentenceTransformer")
@@ -238,7 +240,7 @@ class TestEmbeddingService:
         mock_model = MagicMock()
         mock_transformer.return_value = mock_model
 
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         service.load_model()
         assert service.model is not None
 
@@ -248,7 +250,7 @@ class TestEmbeddingService:
 
     def test_unload_model_when_not_loaded(self):
         """Test unloading when model is not loaded."""
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         service.unload_model()
 
         # Model should remain None, no error raised
@@ -261,7 +263,7 @@ class TestEmbeddingServiceIntegration:
     @pytest.mark.skip(reason="Requires model download - run manually for integration testing")
     def test_real_embedding_generation(self):
         """Test real embedding generation with actual model."""
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         service.load_model()
 
         text = "This is a test sentence for embedding generation."
@@ -275,7 +277,7 @@ class TestEmbeddingServiceIntegration:
     @pytest.mark.skip(reason="Requires model download - run manually for integration testing")
     def test_real_batch_embedding(self):
         """Test real batch embedding with actual model."""
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         service.load_model()
 
         texts = [
@@ -295,7 +297,7 @@ class TestEmbeddingServiceIntegration:
     @pytest.mark.skip(reason="Requires model download - run manually for integration testing")
     def test_real_semantic_similarity(self):
         """Test that semantically similar texts have similar embeddings."""
-        service = EmbeddingService()
+        service = EmbeddingService(use_cache=False)
         service.load_model()
 
         texts = [
