@@ -257,7 +257,7 @@ These features are valuable but require more significant implementation work.
       "Add --include-archive flag to search",
       "Implement archive restore capability"
     ],
-    "passes": false
+    "passes": true
   }
 ]
 ```

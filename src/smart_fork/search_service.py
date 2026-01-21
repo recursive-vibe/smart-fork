@@ -66,7 +66,8 @@ class SearchService:
         cache_service: Optional[CacheService] = None,
         enable_cache: bool = True,
         preference_service: Optional[PreferenceService] = None,
-        enable_preferences: bool = True
+        enable_preferences: bool = True,
+        archive_service: Optional[Any] = None
     ):
         """
         Initialize the SearchService.
@@ -83,6 +84,7 @@ class SearchService:
             enable_cache: Whether to use caching (default True)
             preference_service: Optional PreferenceService for learning from selections
             enable_preferences: Whether to use preference learning (default True)
+            archive_service: Optional SessionArchiveService for searching archived sessions
         """
         self.embedding_service = embedding_service
         self.vector_db_service = vector_db_service
@@ -91,6 +93,7 @@ class SearchService:
         self.k_chunks = k_chunks
         self.top_n_sessions = top_n_sessions
         self.preview_length = preview_length
+        self.archive_service = archive_service
 
         # Initialize cache if enabled
         self.enable_cache = enable_cache
@@ -128,7 +131,8 @@ class SearchService:
         time_range: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        apply_recency_boost: bool = True
+        apply_recency_boost: bool = True,
+        include_archive: bool = False
     ) -> List[SessionSearchResult]:
         """
         Search for relevant sessions using semantic search and ranking.
@@ -142,6 +146,7 @@ class SearchService:
             start_date: Custom start date (ISO format or natural language)
             end_date: Custom end date (ISO format or natural language)
             apply_recency_boost: Whether to boost recent sessions in temporal queries (default True)
+            include_archive: Whether to include archived sessions in search (default False)
 
         Returns:
             List of SessionSearchResult objects, ranked by relevance score
@@ -209,11 +214,22 @@ class SearchService:
             filter_metadata=filter_metadata
         )
 
+        # Also search archive if requested
+        if include_archive and self.archive_service:
+            logger.debug(f"Searching archive (k={self.k_chunks})...")
+            archive_results = self.archive_service.search_archive(
+                query_embedding=query_embedding,
+                k=self.k_chunks
+            )
+            if archive_results:
+                logger.info(f"Found {len(archive_results)} matching chunks in archive")
+                search_results.extend(archive_results)
+
         if not search_results:
             logger.info("No matching chunks found")
             return []
 
-        logger.info(f"Found {len(search_results)} matching chunks")
+        logger.info(f"Found {len(search_results)} matching chunks total")
 
         # Step 3: Group chunks by session_id
         logger.debug("Grouping chunks by session...")

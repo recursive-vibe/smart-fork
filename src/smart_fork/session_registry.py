@@ -25,6 +25,7 @@ class SessionMetadata:
     message_count: int = 0
     tags: List[str] = None
     summary: Optional[str] = None
+    archived: bool = False
 
     def __post_init__(self):
         """Initialize default values."""

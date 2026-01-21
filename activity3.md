@@ -4,7 +4,7 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 
 ---
 
-## Completed (10/14)
+## Completed (11/14)
 
 ### P1 Tasks (4/4 Complete)
 
@@ -83,7 +83,7 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 
 ---
 
-### P3 Tasks (2/4 Complete)
+### P3 Tasks (3/4 Complete)
 
 **VS Code Extension Integration** ✅ 2026-01-21
 - Created vscode-extension/ directory with complete extension scaffold
@@ -130,9 +130,25 @@ Progress on Phase 3 feature development. Full details in verification/phase3-*.t
 
 ---
 
-## Remaining (1/14)
+**Session Archiving** ✅ 2026-01-21
+- SessionArchiveService for archiving old sessions to separate ChromaDB collection
+- Archive threshold configurable in ArchiveConfig (default: 365 days)
+- Separate archive collection: session_chunks_archive
+- Methods: archive_old_sessions(), restore_session(), search_archive(), get_archive_stats()
+- Dry run mode for preview before archiving
+- Session metadata includes 'archived' boolean field
+- MCP tool: fork-detect includes --include-archive parameter (default: false)
+- SearchService integrates archive search when include_archive=True
+- Archive operations: move chunks with embeddings, update metadata, atomic operations
+- ArchiveStats provides total sessions/chunks, oldest/newest dates
+- Tests: 17/17 unit tests passing
+- Integration tests created (6 tests) - skip due to network/proxy issues with embedding model download
+- Backward compatible (existing sessions: archived=False by default)
+
+---
+
+## Remaining (0/14)
 
 ### P2 (0 remaining)
 
-### P3 (1 remaining)
-- Session archiving
+### P3 (0 remaining)

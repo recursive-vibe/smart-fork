@@ -62,6 +62,13 @@ class IndexingConfig:
 
 
 @dataclass
+class ArchiveConfig:
+    """Configuration for session archiving."""
+    archive_threshold_days: int = 365
+    enabled: bool = True
+
+
+@dataclass
 class ServerConfig:
     """Configuration for REST API server."""
     host: str = "127.0.0.1"
@@ -85,6 +92,7 @@ class Config:
     indexing: IndexingConfig = field(default_factory=IndexingConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
+    archive: ArchiveConfig = field(default_factory=ArchiveConfig)
     storage_dir: str = "~/.smart-fork"
 
     def to_dict(self) -> Dict[str, Any]:
@@ -97,6 +105,7 @@ class Config:
             "indexing": asdict(self.indexing),
             "server": asdict(self.server),
             "memory": asdict(self.memory),
+            "archive": asdict(self.archive),
             "storage_dir": self.storage_dir
         }
 
@@ -119,6 +128,8 @@ class Config:
             config.server = ServerConfig(**data["server"])
         if "memory" in data:
             config.memory = MemoryConfig(**data["memory"])
+        if "archive" in data:
+            config.archive = ArchiveConfig(**data["archive"])
         if "storage_dir" in data:
             config.storage_dir = data["storage_dir"]
 
@@ -318,6 +329,11 @@ class ConfigManager:
                 # Validate memory config
                 if self._config.memory.max_memory_mb <= 0:
                     logger.error("Invalid max_memory_mb")
+                    return False
+
+                # Validate archive config
+                if self._config.archive.archive_threshold_days <= 0:
+                    logger.error("Invalid archive_threshold_days")
                     return False
 
                 return True
