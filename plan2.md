@@ -204,7 +204,7 @@ This plan addresses gaps identified between the PRD specification and current im
       "Allow user to view session before forking",
       "Test preview with various session sizes"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "bugfix",
