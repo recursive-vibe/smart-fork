@@ -1307,7 +1307,7 @@ class HierarchicalIndex:
 ## Document Metadata
 
 **Author:** Product Requirements Document  
-**Stakeholders:** Austin (Product Owner), Development Team  
+**Stakeholders:** Awentz513 (Product Owner), Development Team  
 **Status:** Draft for Review  
 **Next Review:** After stakeholder feedback  
 **Related Documents:** None (initial document)
