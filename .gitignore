@@ -28,6 +28,7 @@ env/
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
@@ -77,6 +78,7 @@ dmypy.json
 verification/*.txt
 !verification/.gitkeep
 ralph_log*.txt
+test_performance.py
 
 # VS Code Extension
 vscode-extension/node_modules/
