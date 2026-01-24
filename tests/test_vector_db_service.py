@@ -38,11 +38,11 @@ def db_service(temp_db_dir):
 @pytest.fixture
 def sample_embeddings():
     """Generate sample embeddings for testing."""
-    # Create 5 sample embeddings (768 dimensions)
+    # Create 5 sample embeddings (384 dimensions)
     embeddings = []
     for i in range(5):
         # Simple pattern: mostly zeros with a few ones
-        embedding = [0.0] * 768
+        embedding = [0.0] * 384
         # Set some values based on index
         for j in range(10):
             embedding[i * 10 + j] = 1.0

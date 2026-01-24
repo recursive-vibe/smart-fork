@@ -1,4 +1,4 @@
-"""Embedding service for generating vector embeddings using Nomic model."""
+"""Embedding service for generating vector embeddings using sentence-transformers."""
 
 import gc
 import logging
@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
-    """Service for generating embeddings using nomic-embed-text-v1.5 model.
+    """Service for generating embeddings using sentence-transformers.
 
     Features:
-    - 768-dimensional embeddings
+    - 384-dimensional embeddings (with all-MiniLM-L6-v2)
     - Adaptive batch sizing based on available RAM
     - Memory monitoring and garbage collection
     - Efficient batch processing
@@ -26,7 +26,7 @@ class EmbeddingService:
 
     def __init__(
         self,
-        model_name: str = "nomic-ai/nomic-embed-text-v1.5",
+        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         min_batch_size: int = 8,
         max_batch_size: int = 128,
         memory_threshold_mb: int = 500,
@@ -154,7 +154,7 @@ class EmbeddingService:
             batch_size: Optional batch size override. If None, uses adaptive sizing.
 
         Returns:
-            List of embedding vectors (each vector is 768 dimensions)
+            List of embedding vectors (dimension depends on model)
         """
         # Ensure model is loaded
         if self.model is None:
@@ -257,7 +257,7 @@ class EmbeddingService:
             text: Text to embed
 
         Returns:
-            Embedding vector (768 dimensions)
+            Embedding vector (dimension depends on model)
         """
         embeddings = self.embed_texts([text])
         return embeddings[0] if embeddings else []

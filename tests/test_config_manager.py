@@ -26,8 +26,8 @@ class TestEmbeddingConfig(unittest.TestCase):
     def test_default_values(self):
         """Test default configuration values."""
         config = EmbeddingConfig()
-        self.assertEqual(config.model_name, "nomic-ai/nomic-embed-text-v1.5")
-        self.assertEqual(config.dimension, 768)
+        self.assertEqual(config.model_name, "sentence-transformers/all-MiniLM-L6-v2")
+        self.assertEqual(config.dimension, 384)
         self.assertEqual(config.batch_size, 32)
         self.assertEqual(config.max_batch_size, 128)
         self.assertEqual(config.min_batch_size, 8)
@@ -137,7 +137,7 @@ class TestConfig(unittest.TestCase):
         self.assertIn("memory", data)
         self.assertIn("storage_dir", data)
 
-        self.assertEqual(data["embedding"]["model_name"], "nomic-ai/nomic-embed-text-v1.5")
+        self.assertEqual(data["embedding"]["model_name"], "sentence-transformers/all-MiniLM-L6-v2")
         self.assertEqual(data["search"]["k_chunks"], 200)
         self.assertEqual(data["chunking"]["target_tokens"], 750)
 
@@ -208,7 +208,7 @@ class TestConfigManager(unittest.TestCase):
         config = manager.load()
 
         self.assertIsInstance(config, Config)
-        self.assertEqual(config.embedding.model_name, "nomic-ai/nomic-embed-text-v1.5")
+        self.assertEqual(config.embedding.model_name, "sentence-transformers/all-MiniLM-L6-v2")
 
     def test_save_and_load(self):
         """Test saving and loading configuration."""
@@ -247,7 +247,7 @@ class TestConfigManager(unittest.TestCase):
 
         # Should return default config
         self.assertIsInstance(config, Config)
-        self.assertEqual(config.embedding.model_name, "nomic-ai/nomic-embed-text-v1.5")
+        self.assertEqual(config.embedding.model_name, "sentence-transformers/all-MiniLM-L6-v2")
 
     def test_get_loads_if_not_loaded(self):
         """Test get() loads config if not already loaded."""
@@ -367,7 +367,7 @@ class TestConfigManager(unittest.TestCase):
         manager.reset()
         config = manager.get()
 
-        self.assertEqual(config.embedding.model_name, "nomic-ai/nomic-embed-text-v1.5")
+        self.assertEqual(config.embedding.model_name, "sentence-transformers/all-MiniLM-L6-v2")
 
 
 class TestConvenienceFunctions(unittest.TestCase):
@@ -436,7 +436,7 @@ class TestThreadSafety(unittest.TestCase):
             t.join()
 
         self.assertEqual(len(results), 10)
-        self.assertTrue(all(r == "nomic-ai/nomic-embed-text-v1.5" for r in results))
+        self.assertTrue(all(r == "sentence-transformers/all-MiniLM-L6-v2" for r in results))
 
 
 if __name__ == '__main__':

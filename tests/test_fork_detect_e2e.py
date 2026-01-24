@@ -551,9 +551,9 @@ class TestForkDetectIntegration:
     def mock_embedding_service(self):
         """Create a mock embedding service."""
         service = Mock(spec=EmbeddingService)
-        # Return a realistic 768-dimensional embedding
-        service.embed_single.return_value = [0.1] * 768
-        service.embed_texts.return_value = [[0.1] * 768]
+        # Return a realistic 384-dimensional embedding
+        service.embed_single.return_value = [0.1] * 384
+        service.embed_texts.return_value = [[0.1] * 384]
         return service
 
     def test_integration_with_real_components(self, integration_storage, mock_embedding_service):

@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EmbeddingConfig:
     """Configuration for embedding model."""
-    model_name: str = "nomic-ai/nomic-embed-text-v1.5"
-    dimension: int = 768
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    dimension: int = 384
     batch_size: int = 32
     max_batch_size: int = 128
     min_batch_size: int = 8

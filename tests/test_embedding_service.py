@@ -15,11 +15,11 @@ class TestEmbeddingService:
     def test_init_default_params(self):
         """Test initialization with default parameters."""
         service = EmbeddingService(use_cache=False)
-        assert service.model_name == "nomic-ai/nomic-embed-text-v1.5"
+        assert service.model_name == "sentence-transformers/all-MiniLM-L6-v2"
         assert service.min_batch_size == 8
         assert service.max_batch_size == 128
         assert service.memory_threshold_mb == 500
-        assert service.embedding_dimension == 768
+        assert service.embedding_dimension == 384
         assert service.model is None
         assert service.use_cache is False
 
@@ -97,7 +97,7 @@ class TestEmbeddingService:
 
         assert service.model == mock_model
         mock_transformer.assert_called_once_with(
-            "nomic-ai/nomic-embed-text-v1.5",
+            "sentence-transformers/all-MiniLM-L6-v2",
             trust_remote_code=True,
             device="cpu"
         )
@@ -117,7 +117,7 @@ class TestEmbeddingService:
 
         assert service.device == "mps"
         mock_transformer.assert_called_once_with(
-            "nomic-ai/nomic-embed-text-v1.5",
+            "sentence-transformers/all-MiniLM-L6-v2",
             trust_remote_code=True,
             device="mps"
         )
@@ -137,7 +137,7 @@ class TestEmbeddingService:
 
         assert service.device == "cuda"
         mock_transformer.assert_called_once_with(
-            "nomic-ai/nomic-embed-text-v1.5",
+            "sentence-transformers/all-MiniLM-L6-v2",
             trust_remote_code=True,
             device="cuda"
         )
@@ -159,7 +159,7 @@ class TestEmbeddingService:
         # Should fall back to CPU since MPS is disabled
         assert service.device == "cpu"
         mock_transformer.assert_called_once_with(
-            "nomic-ai/nomic-embed-text-v1.5",
+            "sentence-transformers/all-MiniLM-L6-v2",
             trust_remote_code=True,
             device="cpu"
         )
@@ -193,14 +193,14 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = np.array([[0.1] * 768])
+        mock_model.encode.return_value = np.array([[0.1] * 384])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService(use_cache=False)
         embeddings = service.embed_texts("test text")
 
         assert len(embeddings) == 1
-        assert len(embeddings[0]) == 768
+        assert len(embeddings[0]) == 384
         mock_model.encode.assert_called_once()
 
     @patch("smart_fork.embedding_service.SentenceTransformer")
@@ -210,7 +210,7 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = np.array([[0.1] * 768, [0.2] * 768, [0.3] * 768])
+        mock_model.encode.return_value = np.array([[0.1] * 384, [0.2] * 384, [0.3] * 384])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService(use_cache=False)
@@ -218,7 +218,7 @@ class TestEmbeddingService:
         embeddings = service.embed_texts(texts)
 
         assert len(embeddings) == 3
-        assert all(len(emb) == 768 for emb in embeddings)
+        assert all(len(emb) == 384 for emb in embeddings)
 
     @patch("smart_fork.embedding_service.SentenceTransformer")
     @patch("psutil.virtual_memory")
@@ -245,7 +245,7 @@ class TestEmbeddingService:
 
         # Return different embeddings for each batch
         def encode_side_effect(texts, **kwargs):
-            return np.array([[0.1] * 768 for _ in texts])
+            return np.array([[0.1] * 384 for _ in texts])
 
         mock_model.encode.side_effect = encode_side_effect
         mock_transformer.return_value = mock_model
@@ -272,7 +272,7 @@ class TestEmbeddingService:
         mock_model = MagicMock()
 
         def encode_side_effect(texts, **kwargs):
-            return np.array([[0.1] * 768 for _ in texts])
+            return np.array([[0.1] * 384 for _ in texts])
 
         mock_model.encode.side_effect = encode_side_effect
         mock_transformer.return_value = mock_model
@@ -302,7 +302,7 @@ class TestEmbeddingService:
         mock_model = MagicMock()
 
         def encode_side_effect(texts, **kwargs):
-            return np.array([[0.1] * 768 for _ in texts])
+            return np.array([[0.1] * 384 for _ in texts])
 
         mock_model.encode.side_effect = encode_side_effect
         mock_transformer.return_value = mock_model
@@ -323,7 +323,7 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = np.array([[0.1] * 768 for _ in range(5)])
+        mock_model.encode.return_value = np.array([[0.1] * 384 for _ in range(5)])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService(use_cache=False)
@@ -341,19 +341,19 @@ class TestEmbeddingService:
         # Setup mocks
         mock_memory.return_value = MagicMock(available=2 * 1024 * 1024 * 1024)
         mock_model = MagicMock()
-        mock_model.encode.return_value = np.array([[0.5] * 768])
+        mock_model.encode.return_value = np.array([[0.5] * 384])
         mock_transformer.return_value = mock_model
 
         service = EmbeddingService(use_cache=False)
         embedding = service.embed_single("test text")
 
-        assert len(embedding) == 768
+        assert len(embedding) == 384
         assert embedding[0] == 0.5
 
     def test_get_embedding_dimension(self):
         """Test getting embedding dimension."""
         service = EmbeddingService(use_cache=False)
-        assert service.get_embedding_dimension() == 768
+        assert service.get_embedding_dimension() == 384
 
     @patch("smart_fork.embedding_service.SentenceTransformer")
     @patch("gc.collect")
@@ -391,7 +391,7 @@ class TestEmbeddingServiceIntegration:
         text = "This is a test sentence for embedding generation."
         embedding = service.embed_single(text)
 
-        assert len(embedding) == 768
+        assert len(embedding) == 384
         assert all(isinstance(x, float) for x in embedding)
 
         service.unload_model()
@@ -410,7 +410,7 @@ class TestEmbeddingServiceIntegration:
         embeddings = service.embed_texts(texts)
 
         assert len(embeddings) == 3
-        assert all(len(emb) == 768 for emb in embeddings)
+        assert all(len(emb) == 384 for emb in embeddings)
         # Check that embeddings are different
         assert embeddings[0] != embeddings[1]
 

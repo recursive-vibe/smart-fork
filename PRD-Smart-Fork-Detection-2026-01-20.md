@@ -239,7 +239,7 @@ User: Add authentication to my Next.js dashboard
 │              │                                           │
 │  ┌───────────▼──────────────┐  ┌────────────────────┐   │
 │  │   Embedding Service      │  │  Search Service    │   │
-│  │   (Nomic 768-dim)        │  │  (Composite Score) │   │
+│  │   (MiniLM 384-dim)        │  │  (Composite Score) │   │
 │  └───────────┬──────────────┘  └─────────┬──────────┘   │
 │              │                           │              │
 │  ┌───────────▼───────────────────────────▼──────────┐   │
@@ -279,8 +279,8 @@ User: Add authentication to my Next.js dashboard
 - Storage: Persistent disk-backed collections
 
 **Embedding Model:**
-- Model: `nomic-embed-text-v1.5`
-- Dimensions: 768
+- Model: `all-MiniLM-L6-v2`
+- Dimensions: 384
 - Library: `sentence-transformers` or Nomic's official Python client
 - Rationale: Superior quality for long-form technical text, runs locally, free and open source
 
@@ -311,7 +311,7 @@ User: Add authentication to my Next.js dashboard
    ↓
 4. Memory Extractor identifies PATTERN/WORKING_SOLUTION/WAITING markers
    ↓
-5. Embedding Service generates 768-dim vectors (batch processing)
+5. Embedding Service generates 384-dim vectors (batch processing)
    ↓
 6. Vector DB stores chunks with metadata
    ↓
@@ -395,7 +395,7 @@ User: Add authentication to my Next.js dashboard
   "session_id": "8402b1ed-99dc-417d-86a9-36a1478036dc",
   "chunk_index": 5,                    # Position in session
   "text": "When building a session dashboard...",
-  "embedding": [0.023, -0.145, ...],   # 768-dimensional vector
+  "embedding": [0.023, -0.145, ...],   # 384-dimensional vector
   "metadata": {
     "project": "mortgage-coach-project",
     "timestamp": "2026-01-15T15:30:22.000Z",
@@ -414,8 +414,8 @@ User: Add authentication to my Next.js dashboard
 {
   "version": "1.0",
   "embedding": {
-    "model": "nomic-embed-text-v1.5",
-    "dimensions": 768,
+    "model": "all-MiniLM-L6-v2",
+    "dimensions": 384,
     "batch_size": 50,
     "max_batch_memory_mb": 2048
   },
@@ -1057,7 +1057,7 @@ if session.memory_type in memory_boost:
 
 ### Challenge 1: RAM Exhaustion During Batch Embedding
 
-**Problem:** Embedding large batches of text can consume excessive RAM, especially with 768-dimensional Nomic embeddings. Original developer experienced system lockup with improper batch sizing.
+**Problem:** Embedding large batches of text can consume excessive RAM, especially with 384-dimensional MiniLM embeddings. Original developer experienced system lockup with improper batch sizing.
 
 **Solution:**
 ```python
@@ -1284,7 +1284,7 @@ class HierarchicalIndex:
 
 **Technologies:**
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io)
-- [Nomic Embeddings](https://www.nomic.ai/blog/posts/nomic-embed-text-v1)
+- [Sentence Transformers](https://www.sbert.net/docs/pretrained_models.html)
 - [ChromaDB Documentation](https://docs.trychroma.com/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Claude Code Documentation](https://docs.claude.com/claude-code)

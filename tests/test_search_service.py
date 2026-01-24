@@ -424,7 +424,7 @@ class TestSearchServiceSearch(unittest.TestCase):
     def test_search_full_workflow(self):
         """Test complete search workflow from query to results."""
         # Mock embedding generation
-        query_embedding = [0.1] * 768
+        query_embedding = [0.1] * 384
         self.embedding_service.embed_single.return_value = query_embedding
 
         # Mock vector search results
@@ -496,7 +496,7 @@ class TestSearchServiceSearch(unittest.TestCase):
 
     def test_search_no_chunks_found(self):
         """Test search when no matching chunks found."""
-        query_embedding = [0.1] * 768
+        query_embedding = [0.1] * 384
         self.embedding_service.embed_single.return_value = query_embedding
         self.vector_db_service.search_chunks.return_value = []
 
@@ -506,7 +506,7 @@ class TestSearchServiceSearch(unittest.TestCase):
 
     def test_search_custom_top_n(self):
         """Test search with custom top_n parameter."""
-        query_embedding = [0.1] * 768
+        query_embedding = [0.1] * 384
         self.embedding_service.embed_single.return_value = query_embedding
 
         # Create 10 chunks from 5 different sessions
@@ -538,7 +538,7 @@ class TestSearchServiceSearch(unittest.TestCase):
 
     def test_search_with_metadata_filter(self):
         """Test search with metadata filter."""
-        query_embedding = [0.1] * 768
+        query_embedding = [0.1] * 384
         self.embedding_service.embed_single.return_value = query_embedding
         self.vector_db_service.search_chunks.return_value = []
 

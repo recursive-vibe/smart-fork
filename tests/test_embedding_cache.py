@@ -263,7 +263,7 @@ class TestEmbeddingCache:
 
             # Create 1000 embeddings
             texts = [f"text_{i}" for i in range(1000)]
-            embeddings = [[float(i) * 0.1] * 768 for i in range(1000)]
+            embeddings = [[float(i) * 0.1] * 384 for i in range(1000)]
 
             # Store all
             cache.put_batch(texts, embeddings)

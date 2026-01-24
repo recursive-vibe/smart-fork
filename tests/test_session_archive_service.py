@@ -65,7 +65,7 @@ def sample_embeddings():
     """Generate sample embeddings for testing."""
     embeddings = []
     for i in range(5):
-        embedding = [0.0] * 768
+        embedding = [0.0] * 384
         for j in range(10):
             embedding[i * 10 + j] = 1.0
         embeddings.append(embedding)

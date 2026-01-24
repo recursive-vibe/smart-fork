@@ -521,7 +521,7 @@ class TestInitialSetupIntegration:
         setup.chunking_service.chunk_messages.return_value = [mock_chunk]
 
         # Mock embeddings
-        setup.embedding_service.embed_texts.return_value = [[0.1] * 768]
+        setup.embedding_service.embed_texts.return_value = [[0.1] * 384]
 
         # Create test file
         test_file = tmp_path / "test_session.jsonl"

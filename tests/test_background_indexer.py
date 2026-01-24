@@ -289,7 +289,7 @@ class TestBackgroundIndexer(unittest.TestCase):
         self.chunking_service.chunk_messages.return_value = mock_chunks
 
         # Mock embeddings
-        mock_embeddings = [[0.1] * 768 for _ in range(3)]
+        mock_embeddings = [[0.1] * 384 for _ in range(3)]
         self.embedding_service.embed_texts.return_value = mock_embeddings
 
         # Mock registry

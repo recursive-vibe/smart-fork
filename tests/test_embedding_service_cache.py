@@ -21,7 +21,7 @@ class TestEmbeddingServiceCache:
         def mock_encode(texts, **kwargs):
             import numpy as np
             # Return unique embeddings for each text
-            return np.array([[float(hash(t) % 100) / 100] * 768 for t in texts])
+            return np.array([[float(hash(t) % 100) / 100] * 384 for t in texts])
         model.encode = mock_encode
         return model
 
@@ -144,7 +144,7 @@ class TestEmbeddingServiceCache:
 
             # First call
             embedding1 = service.embed_single(text)
-            assert len(embedding1) == 768
+            assert len(embedding1) == 384
 
             # Second call - should hit cache
             embedding2 = service.embed_single(text)
@@ -192,7 +192,7 @@ class TestEmbeddingServiceCache:
         # Create a proper Mock for encode
         encode_mock = Mock()
         import numpy as np
-        encode_mock.side_effect = lambda texts, **kwargs: np.array([[float(hash(t) % 100) / 100] * 768 for t in texts])
+        encode_mock.side_effect = lambda texts, **kwargs: np.array([[float(hash(t) % 100) / 100] * 384 for t in texts])
         mock_model.encode = encode_mock
         mock_transformer.return_value = mock_model
 
