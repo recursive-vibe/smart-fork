@@ -31,7 +31,7 @@ You: *spends 10 minutes re-explaining everything*
                   (Semantic Vectorization)
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│  Vector Database (ChromaDB + nomic-embed-text-v1.5)            │
+│  Vector Database (ChromaDB + all-MiniLM-L6-v2)                 │
 │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
 │                                                                  │
 │  Every message, every code block, every explanation...          │
@@ -190,8 +190,8 @@ WITH Smart Fork:
 │     Action: Indexes new sessions automatically                   │
 ├──────────────────────────────────────────────────────────────────┤
 │  2. Embedding Service                                            │
-│     Model: nomic-ai/nomic-embed-text-v1.5                       │
-│     Action: Converts text → 768-dim vectors                      │
+│     Model: sentence-transformers/all-MiniLM-L6-v2               │
+│     Action: Converts text → 384-dim vectors                      │
 ├──────────────────────────────────────────────────────────────────┤
 │  3. Vector DB (ChromaDB)                                         │
 │     Stores: All session chunks as vectors                        │
@@ -218,7 +218,7 @@ WITH Smart Fork:
 Initial Setup:
   • Index 100 sessions: ~30 seconds (with multi-threading)
   • Index 1000 sessions: ~5 minutes
-  • Embedding model: Downloads once (~400MB)
+  • Embedding model: Downloads once (~90MB)
 
 Per-Query Performance (measured with real data):
   • First query (cold start): ~8 seconds
@@ -230,7 +230,7 @@ Per-Query Performance (measured with real data):
     - No initialization overhead
 
 Memory Usage:
-  • Base: ~500MB (embedding model)
+  • Base: ~100MB (embedding model)
   • Per 1000 sessions: ~50MB (vector storage)
 
 Database Size:
@@ -251,7 +251,7 @@ Testing fork-detect functionality...
 
 Response shows:
   • Server initialized all services ✓
-  • Loaded embedding model (nomic-embed-text-v1.5) ✓
+  • Loaded embedding model (all-MiniLM-L6-v2) ✓
   • Computed query embedding ✓
   • Searched vector database ✓
   • Found 3 relevant sessions (43%, 42%, 42% match) ✓
@@ -277,7 +277,7 @@ You can now search through your Claude Code sessions.
 **You just watched Smart Fork:**
 1. ✅ Start the MCP server
 2. ✅ Initialize all 13 tools
-3. ✅ Load a 768-dimensional embedding model
+3. ✅ Load a 384-dimensional embedding model
 4. ✅ Search through your indexed Claude sessions
 5. ✅ Apply composite scoring (similarity + recency + chunks)
 6. ✅ Return ranked results

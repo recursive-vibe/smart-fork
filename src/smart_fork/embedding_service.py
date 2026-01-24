@@ -52,7 +52,7 @@ class EmbeddingService:
         self.max_batch_size = max_batch_size
         self.memory_threshold_mb = memory_threshold_mb
         self.model = None
-        self.embedding_dimension = 768  # nomic-embed-text-v1.5 dimension
+        self.embedding_dimension: Optional[int] = None  # Auto-detected when model loads
         self.throttle_seconds = throttle_seconds
         self.use_mps = use_mps
         self.device = "cpu"  # Will be updated when model loads
@@ -87,12 +87,24 @@ class EmbeddingService:
                 self.device = "cpu"
                 logger.info("No GPU acceleration available - using CPU")
 
-            # trust_remote_code is required for nomic models
-            self.model = SentenceTransformer(
-                self.model_name,
-                trust_remote_code=True,
-                device=self.device
-            )
+            # trust_remote_code only needed for nomic models
+            needs_trust_remote = "nomic" in self.model_name.lower()
+
+            if needs_trust_remote:
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    trust_remote_code=True,
+                    device=self.device
+                )
+            else:
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device
+                )
+
+            # Auto-detect embedding dimension from model
+            self.embedding_dimension = self.model.get_sentence_embedding_dimension()
+
             logger.info(
                 f"Model loaded successfully on {self.device}. "
                 f"Embedding dimension: {self.embedding_dimension}"
@@ -254,8 +266,11 @@ class EmbeddingService:
         """Get the dimension of embeddings produced by this service.
 
         Returns:
-            Embedding dimension (768 for nomic-embed-text-v1.5)
+            Embedding dimension (auto-detected from model)
         """
+        if self.embedding_dimension is None:
+            # Load model to detect dimension
+            self.load_model()
         return self.embedding_dimension
 
     def unload_model(self) -> None:

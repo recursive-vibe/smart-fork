@@ -513,6 +513,7 @@ def initialize_services(storage_dir: Optional[str] = None) -> tuple[Optional[Sea
 
         # Initialize services
         embedding_service = EmbeddingService(
+            model_name=config.embedding.model_name,
             min_batch_size=config.embedding.min_batch_size,
             max_batch_size=config.embedding.max_batch_size,
             throttle_seconds=config.embedding.throttle_seconds,
@@ -547,21 +548,26 @@ def initialize_services(storage_dir: Optional[str] = None) -> tuple[Optional[Sea
         # Get Claude directory to monitor
         claude_dir = Path.home() / ".claude"
 
-        # Initialize summary service
-        summary_service = SessionSummaryService()
+        # Create background indexer only if enabled in config
+        background_indexer = None
+        if config.indexing.enabled:
+            # Initialize summary service
+            summary_service = SessionSummaryService()
 
-        # Create background indexer
-        background_indexer = BackgroundIndexer(
-            claude_dir=claude_dir,
-            vector_db=vector_db_service,
-            session_registry=session_registry,
-            embedding_service=embedding_service,
-            chunking_service=chunking_service,
-            session_parser=session_parser,
-            debounce_seconds=5.0,
-            checkpoint_interval=15,
-            summary_service=summary_service
-        )
+            background_indexer = BackgroundIndexer(
+                claude_dir=claude_dir,
+                vector_db=vector_db_service,
+                session_registry=session_registry,
+                embedding_service=embedding_service,
+                chunking_service=chunking_service,
+                session_parser=session_parser,
+                debounce_seconds=config.indexing.debounce_delay,
+                checkpoint_interval=config.indexing.checkpoint_interval,
+                summary_service=summary_service
+            )
+            logger.info("Background indexer created (enabled in config)")
+        else:
+            logger.info("Background indexer disabled in config")
 
         logger.info("Services initialized successfully")
         return search_service, background_indexer

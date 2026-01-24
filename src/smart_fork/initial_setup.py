@@ -30,6 +30,7 @@ from .chunking_service import ChunkingService
 from .embedding_service import EmbeddingService
 from .vector_db_service import VectorDBService
 from .session_registry import SessionRegistry, SessionMetadata
+from .config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -308,10 +309,22 @@ class InitialSetup:
         # Create storage directory
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
+        # Load configuration
+        config_manager = ConfigManager()
+        config = config_manager.load()
+
         # Initialize services (with caching enabled by default)
         # Use cache directory within storage_dir for isolation
         cache_dir = str(self.storage_dir / "embedding_cache")
-        self.embedding_service = EmbeddingService(use_cache=True, cache_dir=cache_dir)
+        self.embedding_service = EmbeddingService(
+            model_name=config.embedding.model_name,
+            min_batch_size=config.embedding.min_batch_size,
+            max_batch_size=config.embedding.max_batch_size,
+            throttle_seconds=config.embedding.throttle_seconds,
+            use_mps=config.embedding.use_mps,
+            use_cache=True,
+            cache_dir=cache_dir
+        )
         self.vector_db_service = VectorDBService(
             persist_directory=str(self.storage_dir / "vector_db")
         )

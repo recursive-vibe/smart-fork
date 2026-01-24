@@ -1,12 +1,3 @@
 {
-  "mcpServers": {
-    "smart-fork": {
-      "command": "/Users/austinwentzel/Documents/Smart-Fork/venv/bin/python",
-      "args": ["-m", "smart_fork.server"],
-      "cwd": "/Users/austinwentzel/Documents/Smart-Fork",
-      "env": {
-        "PYTHONPATH": "/Users/austinwentzel/Documents/Smart-Fork/src"
-      }
-    }
-  }
+  "mcpServers": {}
 }

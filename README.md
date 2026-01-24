@@ -75,9 +75,8 @@ Smart Fork Detection solves the "context loss" problem in AI-assisted developmen
 
 - Python 3.10 or higher
 - Claude Code (with MCP support)
-- 2GB+ RAM recommended for embedding model
+- 1GB+ RAM recommended for embedding model
 - 500MB+ disk space for vector database
-- `einops` package (required by nomic-embed-text model)
 
 ### Install from Source
 
@@ -274,8 +273,8 @@ Smart Fork uses a configuration file at `~/.smart-fork/config.json`. The file is
 
 ```json
 "embedding": {
-  "model_name": "nomic-ai/nomic-embed-text-v1.5",
-  "dimension": 768,
+  "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "dimension": 384,
   "batch_size": 32,
   "max_batch_size": 128,
   "min_batch_size": 8
@@ -454,8 +453,8 @@ Create or edit `~/.smart-fork/config.json`:
 ```json
 {
   "embedding": {
-    "model_name": "nomic-ai/nomic-embed-text-v1.5",
-    "dimension": 768,
+    "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+    "dimension": 384,
     "batch_size": 32,
     "max_batch_size": 128,
     "min_batch_size": 8
@@ -508,7 +507,7 @@ Session files are parsed, chunked, embedded, and stored in the vector database a
 
 When Claude invokes the `fork-detect` tool, Smart Fork:
 
-1. **Embeds Your Query**: Converts your natural language description to a 768-dimensional vector
+1. **Embeds Your Query**: Converts your natural language description to a 384-dimensional vector
 2. **Vector Search**: Finds the 200 most similar chunks using ChromaDB's k-NN search
 3. **Groups by Session**: Aggregates chunks by their parent session
 4. **Scores Sessions**: Calculates composite scores for each session
