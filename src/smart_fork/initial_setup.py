@@ -3,9 +3,18 @@ Initial database setup flow for Smart Fork.
 
 This module handles the first-run experience, scanning existing Claude Code sessions
 and building the initial vector database and session registry.
+
+Supports two modes:
+- Standard mode: Process all sessions in a single process (may use lots of memory)
+- Batch mode (--batch-mode): Process sessions in batches, spawning fresh Python
+  processes between batches to fully release memory. Recommended for large
+  session counts (>100 sessions).
 """
 
+import gc
 import os
+import sys
+import subprocess
 import time
 import json
 import logging
@@ -629,6 +638,23 @@ class InitialSetup:
             state.last_updated = time.time()
             self._save_state(state)
 
+            # Memory management: run garbage collection after each session
+            gc.collect()
+
+            # More aggressive cleanup every 10 sessions
+            sessions_done = len(state.processed_files)
+            if sessions_done % 10 == 0:
+                gc.collect(generation=2)
+                logger.debug(f"Full GC after {sessions_done} sessions")
+
+            # Unload and reload embedding model every 50 sessions to free GPU/MPS memory
+            if sessions_done % 50 == 0 and sessions_done > 0:
+                logger.info(f"Unloading embedding model after {sessions_done} sessions to free memory")
+                if self.embedding_service:
+                    self.embedding_service.flush_cache()
+                    self.embedding_service.unload_model()
+                gc.collect()
+
         return {
             'total_chunks': total_chunks,
             'errors': errors,
@@ -722,6 +748,23 @@ class InitialSetup:
                         total_chunks=total_chunks,
                         start_time=start_time
                     )
+
+                # Memory management: run garbage collection after each session
+                gc.collect()
+
+                # More aggressive cleanup every 10 sessions
+                sessions_done = len(state.processed_files)
+                if sessions_done % 10 == 0:
+                    gc.collect(generation=2)
+                    logger.debug(f"Full GC after {sessions_done} sessions")
+
+                # Unload and reload embedding model every 50 sessions to free GPU/MPS memory
+                if sessions_done % 50 == 0 and sessions_done > 0:
+                    logger.info(f"Unloading embedding model after {sessions_done} sessions to free memory")
+                    if self.embedding_service:
+                        self.embedding_service.flush_cache()
+                        self.embedding_service.unload_model()
+                    gc.collect()
 
         return {
             'total_chunks': total_chunks,
@@ -867,3 +910,329 @@ class InitialSetup:
             )
 
         return result
+
+
+def run_single_batch(
+    batch_size: int = 5,
+    storage_dir: str = "~/.smart-fork",
+    claude_dir: str = "~/.claude",
+    timeout_per_session: float = 30.0,
+    use_cpu: bool = True
+) -> int:
+    """
+    Process a single batch of sessions.
+
+    This function is designed to be called in a subprocess. It processes
+    up to `batch_size` sessions and then exits, allowing memory to be
+    fully released.
+
+    Args:
+        batch_size: Maximum number of sessions to process in this batch
+        storage_dir: Directory for Smart Fork data (default: ~/.smart-fork)
+        claude_dir: Directory containing Claude Code sessions
+        timeout_per_session: Timeout in seconds for processing each session
+        use_cpu: Force CPU mode (disable MPS/CUDA) to reduce memory usage
+
+    Returns:
+        Exit code: 0 = all done, 1 = more to process, 2 = error
+    """
+    try:
+        # Force CPU mode if requested (before importing torch-dependent modules)
+        if use_cpu:
+            os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+            os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
+        from .embedding_service import EmbeddingService
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+        batch_logger = logging.getLogger(__name__)
+
+        # Patch EmbeddingService to use CPU and smaller batch size
+        if use_cpu:
+            original_init = EmbeddingService.__init__
+            def patched_init(self, *args, **kwargs):
+                kwargs['use_mps'] = False
+                kwargs['max_batch_size'] = 8
+                original_init(self, *args, **kwargs)
+            EmbeddingService.__init__ = patched_init
+
+        setup = InitialSetup(
+            storage_dir=storage_dir,
+            claude_dir=claude_dir,
+            timeout_per_session=timeout_per_session,
+            show_progress=False  # We'll handle progress ourselves
+        )
+
+        # Find all session files
+        all_files = setup._find_session_files()
+        state = setup._load_state()
+
+        if state is None:
+            processed = set()
+        else:
+            processed = set(state.processed_files)
+
+        remaining = len(all_files) - len(processed)
+        batch_logger.info(f"Total: {len(all_files)}, Processed: {len(processed)}, Remaining: {remaining}")
+
+        if remaining == 0:
+            batch_logger.info("All sessions processed!")
+            return 0
+
+        # Initialize services
+        setup._initialize_services()
+
+        count = 0
+        start_time = time.time()
+
+        for file_path in all_files:
+            if str(file_path) in processed:
+                continue
+
+            if count >= batch_size:
+                batch_logger.info(f"Batch limit reached ({batch_size} sessions)")
+                break
+
+            # Progress
+            total_done = len(processed) + count
+            pct = (total_done / len(all_files)) * 100
+            print(f"Processing {total_done + 1} of {len(all_files)} ({pct:.1f}%) - {file_path.name}")
+
+            # Process the file
+            result = setup._process_session_file_with_timeout(file_path)
+
+            # Update state
+            if state is None:
+                state = SetupState(
+                    total_files=len(all_files),
+                    processed_files=[],
+                    timed_out_files=[],
+                    started_at=time.time(),
+                    last_updated=time.time()
+                )
+
+            state.processed_files.append(str(file_path))
+            if result.get('timed_out'):
+                state.timed_out_files.append(str(file_path))
+            state.last_updated = time.time()
+            setup._save_state(state)
+
+            count += 1
+            gc.collect()
+
+        # Cleanup
+        if setup.embedding_service:
+            setup.embedding_service.flush_cache()
+            setup.embedding_service.unload_model()
+
+        gc.collect()
+
+        elapsed = time.time() - start_time
+        batch_logger.info(f"Batch processed {count} sessions in {elapsed:.1f}s")
+
+        # Check if there are more
+        remaining_after = len(all_files) - len(state.processed_files)
+        if remaining_after == 0:
+            batch_logger.info("All sessions processed!")
+            return 0
+        else:
+            batch_logger.info(f"Sessions remaining: {remaining_after}")
+            return 1
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 2
+
+
+def run_batch_mode(
+    batch_size: int = 5,
+    storage_dir: str = "~/.smart-fork",
+    claude_dir: str = "~/.claude",
+    timeout_per_session: float = 30.0,
+    use_cpu: bool = True
+) -> Dict[str, Any]:
+    """
+    Run initial setup in batch mode, spawning fresh processes for each batch.
+
+    This is the recommended approach for large session counts (>100 sessions)
+    as it ensures memory is fully released between batches.
+
+    Args:
+        batch_size: Number of sessions to process per batch (default: 5)
+        storage_dir: Directory for Smart Fork data (default: ~/.smart-fork)
+        claude_dir: Directory containing Claude Code sessions
+        timeout_per_session: Timeout in seconds for processing each session
+        use_cpu: Force CPU mode to reduce memory usage (default: True)
+
+    Returns:
+        Dictionary with setup results
+    """
+    batch_logger = logging.getLogger(__name__)
+    batch_logger.info(f"Starting batch mode setup (batch_size={batch_size}, use_cpu={use_cpu})")
+
+    # Resolve paths
+    storage_path = Path(storage_dir).expanduser()
+    claude_path = Path(claude_dir).expanduser()
+
+    # Build the subprocess command
+    # Use the same Python interpreter and module
+    python_exe = sys.executable
+
+    batch_num = 0
+    start_time = time.time()
+
+    while True:
+        batch_num += 1
+        print(f"\n{'='*60}")
+        print(f"Starting batch {batch_num}")
+        print(f"{'='*60}\n")
+
+        # Build command to run single batch
+        cmd = [
+            python_exe, '-m', 'smart_fork.initial_setup',
+            '--single-batch',
+            '--batch-size', str(batch_size),
+            '--storage-dir', str(storage_path),
+            '--claude-dir', str(claude_path),
+            '--timeout', str(timeout_per_session)
+        ]
+        if use_cpu:
+            cmd.append('--use-cpu')
+
+        # Run subprocess
+        try:
+            result = subprocess.run(cmd, check=False)
+            exit_code = result.returncode
+        except Exception as e:
+            batch_logger.error(f"Subprocess failed: {e}")
+            return {
+                'success': False,
+                'batches_run': batch_num,
+                'elapsed_time': time.time() - start_time,
+                'error': str(e)
+            }
+
+        if exit_code == 0:
+            # All done
+            print(f"\n{'='*60}")
+            print(f"All sessions processed! Done.")
+            print(f"Total batches: {batch_num}")
+            print(f"Total time: {_format_time(time.time() - start_time)}")
+            print(f"{'='*60}")
+            return {
+                'success': True,
+                'batches_run': batch_num,
+                'elapsed_time': time.time() - start_time
+            }
+        elif exit_code == 1:
+            # More to process, continue
+            batch_logger.info(f"Batch {batch_num} complete, more sessions remaining...")
+            time.sleep(1)  # Brief pause between batches
+            continue
+        else:
+            # Error
+            batch_logger.error(f"Batch {batch_num} failed with exit code {exit_code}")
+            return {
+                'success': False,
+                'batches_run': batch_num,
+                'elapsed_time': time.time() - start_time,
+                'error': f'Batch failed with exit code {exit_code}'
+            }
+
+
+def main():
+    """CLI entry point for initial setup."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Smart Fork initial setup - index Claude Code sessions into vector database"
+    )
+
+    # Mode selection
+    parser.add_argument(
+        "--batch-mode", action="store_true",
+        help="Use subprocess-based batch processing (recommended for >100 sessions)"
+    )
+    parser.add_argument(
+        "--single-batch", action="store_true",
+        help="Process one batch and exit (internal use, returns exit code 0/1/2)"
+    )
+
+    # Common options
+    parser.add_argument("--resume", action="store_true", help="Resume from previous state")
+    parser.add_argument("--retry-timeouts", action="store_true", help="Retry timed-out sessions")
+    parser.add_argument("--timeout", type=float, default=30.0, help="Timeout per session in seconds")
+    parser.add_argument("--workers", type=int, default=1, help="Number of parallel workers (standard mode only)")
+
+    # Batch mode options
+    parser.add_argument("--batch-size", type=int, default=5, help="Sessions per batch (batch mode)")
+    parser.add_argument("--use-cpu", action="store_true", help="Force CPU mode (disable MPS/CUDA)")
+
+    # Path options
+    parser.add_argument(
+        "--storage-dir", type=str, default="~/.smart-fork",
+        help="Directory for Smart Fork data (default: ~/.smart-fork)"
+    )
+    parser.add_argument(
+        "--claude-dir", type=str, default="~/.claude",
+        help="Directory containing Claude Code sessions (default: ~/.claude)"
+    )
+
+    args = parser.parse_args()
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    if args.single_batch:
+        # Internal: process single batch and exit with code
+        exit_code = run_single_batch(
+            batch_size=args.batch_size,
+            storage_dir=args.storage_dir,
+            claude_dir=args.claude_dir,
+            timeout_per_session=args.timeout,
+            use_cpu=args.use_cpu
+        )
+        sys.exit(exit_code)
+
+    elif args.batch_mode:
+        # Batch mode: spawn subprocesses
+        result = run_batch_mode(
+            batch_size=args.batch_size,
+            storage_dir=args.storage_dir,
+            claude_dir=args.claude_dir,
+            timeout_per_session=args.timeout,
+            use_cpu=args.use_cpu
+        )
+
+        if not result.get('success'):
+            print(f"\nSetup failed: {result.get('error', 'Unknown error')}")
+            sys.exit(1)
+
+    else:
+        # Standard mode: single process
+        setup = InitialSetup(
+            storage_dir=args.storage_dir,
+            claude_dir=args.claude_dir,
+            timeout_per_session=args.timeout,
+            workers=args.workers
+        )
+        result = setup.run_setup(resume=args.resume, retry_timeouts=args.retry_timeouts)
+
+        if result.get('interrupted'):
+            print("\nSetup interrupted. Run with --resume to continue.")
+        elif not result.get('success', True):
+            print(f"\nSetup failed: {result.get('message', 'Unknown error')}")
+        else:
+            print(f"\nSetup complete!")
+
+
+if __name__ == "__main__":
+    main()

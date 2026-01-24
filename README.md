@@ -54,6 +54,7 @@ Smart Fork Detection solves the "context loss" problem in AI-assisted developmen
   - [Forking a Session](#forking-a-session)
 - [Configuration](#configuration)
   - [Configuration Options](#configuration-options)
+  - [Batch Mode Setup](#batch-mode-setup-recommended-for-100-sessions)
   - [Configuration File](#configuration-file)
 - [How It Works](#how-it-works)
   - [Background Indexing](#background-indexing)
@@ -143,19 +144,18 @@ Restart Claude Code (or reload the VSCode window) to load the MCP server.
    ```bash
    cd /path/to/smart-fork
    source venv/bin/activate
-   python -c "
-   import sys
-   sys.path.insert(0, 'src')
-   from smart_fork.initial_setup import InitialSetup
-   setup = InitialSetup()
-   result = setup.run_setup()
-   print(result)
-   "
+
+   # For small session counts (<100 sessions)
+   python -m smart_fork.initial_setup
+
+   # For large session counts (100+ sessions) - recommended
+   python -m smart_fork.initial_setup --batch-mode
    ```
 
    **Note**:
    - Large session files (>1MB) may take longer to process. Sessions with no parseable messages will be skipped.
    - By default, sessions that take longer than 30 seconds to process will timeout and be skipped. See [Timeout Handling](#timeout-handling) for configuration options.
+   - For 100+ sessions, use `--batch-mode` to avoid memory issues. See [Batch Mode Setup](#batch-mode-setup) for details.
 
 3. **Use the Tool** - In any Claude Code session, simply describe what you want to do in natural language. Claude Code will automatically invoke the `fork-detect` tool when appropriate.
 
@@ -365,7 +365,7 @@ if result.get('timeouts'):
 
 **Multi-Threaded Indexing:**
 
-Speed up initial setup by processing sessions in parallel (recommended for 100+ sessions):
+Speed up initial setup by processing sessions in parallel:
 
 ```python
 from smart_fork.initial_setup import InitialSetup
@@ -382,6 +382,38 @@ print(f"Elapsed time: {result['elapsed_time']:.1f}s")
 # - 4 workers: 2-3x faster
 # - 8 workers: 3-4x faster (diminishing returns due to I/O)
 ```
+
+**Batch Mode Setup (Recommended for 100+ Sessions):**
+
+For large session counts, batch mode spawns fresh Python processes between batches to fully release memory:
+
+```bash
+# Run initial setup in batch mode (recommended)
+python -m smart_fork.initial_setup --batch-mode
+
+# Custom batch size (default: 5 sessions per batch)
+python -m smart_fork.initial_setup --batch-mode --batch-size 10
+
+# Force CPU mode to reduce memory usage
+python -m smart_fork.initial_setup --batch-mode --use-cpu
+
+# All batch mode options
+python -m smart_fork.initial_setup --batch-mode --batch-size 5 --use-cpu --timeout 60
+```
+
+Batch mode benefits:
+- **Memory Management**: Each batch runs in a separate process, ensuring complete memory release
+- **Resumable**: State is saved after each session, so you can interrupt and resume anytime
+- **Progress Tracking**: Shows current progress and remaining sessions
+- **CPU Mode**: `--use-cpu` disables GPU/MPS acceleration to reduce memory footprint
+
+CLI options:
+- `--batch-mode`: Enable subprocess-based batch processing
+- `--batch-size N`: Sessions per batch (default: 5)
+- `--use-cpu`: Force CPU mode (disable MPS/CUDA)
+- `--timeout N`: Timeout per session in seconds (default: 30)
+- `--storage-dir PATH`: Custom storage directory (default: ~/.smart-fork)
+- `--claude-dir PATH`: Custom Claude sessions directory (default: ~/.claude)
 
 #### Server Settings
 

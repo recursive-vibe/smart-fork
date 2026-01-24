@@ -38,15 +38,14 @@ export class MCPClient {
                 stdio: ['pipe', 'pipe', 'pipe']
             });
 
-            if (\!this.process.stdout || \!this.process.stdin) {
+            if (!this.process.stdout || !this.process.stdin) {
                 reject(new Error('Failed to create process streams'));
                 return;
             }
 
             this.process.stdout.on('data', (data) => {
                 this.buffer += data.toString();
-                const lines = this.buffer.split('
-');
+                const lines = this.buffer.split('\n');
                 this.buffer = lines.pop() || '';
 
                 for (const line of lines) {
@@ -92,7 +91,7 @@ export class MCPClient {
     }
 
     async listTools(): Promise<any[]> {
-        if (\!this.initialized) {
+        if (!this.initialized) {
             await this.start();
         }
 
@@ -101,7 +100,7 @@ export class MCPClient {
     }
 
     async callTool(toolName: string, args: Record<string, any>): Promise<MCPResponse> {
-        if (\!this.initialized) {
+        if (!this.initialized) {
             await this.start();
         }
 
@@ -126,8 +125,7 @@ export class MCPClient {
             this.pendingRequests.set(id, { resolve, reject });
 
             if (this.process?.stdin) {
-                this.process.stdin.write(JSON.stringify(request) + '
-');
+                this.process.stdin.write(JSON.stringify(request) + '\n');
             } else {
                 reject(new Error('Process not started'));
             }
@@ -150,8 +148,7 @@ export class MCPClient {
             };
 
             if (this.process?.stdin) {
-                this.process.stdin.write(JSON.stringify(notification) + '
-');
+                this.process.stdin.write(JSON.stringify(notification) + '\n');
                 resolve();
             } else {
                 reject(new Error('Process not started'));
@@ -160,8 +157,8 @@ export class MCPClient {
     }
 
     private handleResponse(response: any): void {
-        if (response.id \!== undefined && this.pendingRequests.has(response.id)) {
-            const { resolve, reject } = this.pendingRequests.get(response.id)\!;
+        if (response.id !== undefined && this.pendingRequests.has(response.id)) {
+            const { resolve, reject } = this.pendingRequests.get(response.id)!;
             this.pendingRequests.delete(response.id);
 
             if (response.error) {

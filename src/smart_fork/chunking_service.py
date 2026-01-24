@@ -207,11 +207,9 @@ class ChunkingService:
             overlap_accumulated += message_tokens
             overlap_start = i
 
-        # Don't start before the next message after chunk_start
-        # to ensure we make forward progress
-        next_start = min(chunk_end + 1, len(messages) - 1)
-
-        return min(overlap_start, next_start)
+        # Ensure we always make forward progress (at least 1 message past chunk_start)
+        # This prevents infinite loops when chunk tokens < overlap_tokens
+        return max(overlap_start, chunk_start + 1)
 
     def _count_tokens(self, text: str) -> int:
         """

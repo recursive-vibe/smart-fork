@@ -47,12 +47,12 @@
       "properties": {
         "smart-fork.serverPath": {
           "type": "string",
-          "default": "",
-          "description": "Path to the Smart Fork MCP server executable (defaults to 'python -m smart_fork.server')"
+          "default": "-m smart_fork.server",
+          "description": "Arguments to pass to Python for running the MCP server"
         },
         "smart-fork.pythonPath": {
           "type": "string",
-          "default": "python",
+          "default": "python3",
           "description": "Path to Python executable to use for running the MCP server"
         },
         "smart-fork.autoStart": {
